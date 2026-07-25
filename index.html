@@ -19,12 +19,14 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+<div class="progress-track"><div class="progress-bar"></div></div>
 <div class="noise-overlay"></div>
+<div class="grain-grid"></div>
 
 <header class="site-header">
   <div class="wrap header-row">
@@ -38,7 +40,7 @@
       <a href="#products">Продукты</a>
       <a href="#faq">Вопросы</a>
     </nav>
-    <a class="btn btn-ghost header-cta" href="#contact">Обсудить проект</a>
+    <a class="btn btn-ghost header-cta" href="https://t.me/temsanone" target="_blank" rel="noopener">Обсудить проект</a>
   </div>
 </header>
 
@@ -46,55 +48,75 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="wrap hero-grid">
-      <div class="hero-copy">
-        <p class="eyebrow stagger-item" style="--d:0">Слепок мышления · не чат-бот, не промпт</p>
-        <h1 class="stagger-item" style="--d:1">
-          Я создаю цифровую копию <em>вашего мышления</em>,
-          а не ещё одного ассистента поверх него
-        </h1>
-        <p class="hero-sub stagger-item" style="--d:2">
-          Исследую ваши тексты, переписки, интервью и книги — извлекаю карту смыслов,
-          понятийный аппарат и логику решений. Затем превращаю это в работающую
-          интеллектуальную систему: ассистента, базу знаний, генератор контента.
-        </p>
-        <div class="hero-actions stagger-item" style="--d:3">
-          <a class="btn btn-primary" href="#contact">Получить разбор мышления</a>
-          <a class="btn btn-text" href="#process">Как это устроено →</a>
-        </div>
+    <div class="hero-canvas-host">
+      <canvas id="mindmap" aria-hidden="true"></canvas>
+      <div class="hero-vignette"></div>
+    </div>
+
+    <div class="wrap hero-inner">
+      <p class="eyebrow stagger-item" style="--d:0">
+        <span class="pulse-dot"></span>Слепок мышления · не чат-бот, не промпт
+      </p>
+      <h1 class="stagger-item" style="--d:1">
+        Я создаю цифровую копию
+        <span class="headline-accent">вашего мышления</span>,
+        а не ещё одного ассистента поверх него
+      </h1>
+      <p class="hero-sub stagger-item" style="--d:2">
+        Исследую ваши тексты, переписки, интервью и книги — извлекаю карту смыслов,
+        понятийный аппарат и логику решений. Затем превращаю это в работающую
+        интеллектуальную систему.
+      </p>
+      <div class="hero-actions stagger-item" style="--d:3">
+        <a class="btn btn-primary" href="https://t.me/temsanone" target="_blank" rel="noopener">
+          Получить разбор мышления
+        </a>
+        <a class="btn btn-text" href="#process">Как это устроено →</a>
       </div>
-      <div class="hero-visual stagger-item" style="--d:2">
-        <div class="imprint-card">
-          <div class="imprint-row"><span>ИСТОЧНИК</span><span>Telegram · статьи · интервью</span></div>
-          <div class="imprint-row"><span>ИЗВЛЕЧЕНО</span><span>карта смыслов, словарь, логика решений</span></div>
-          <div class="imprint-row"><span>СИСТЕМА</span><span>ассистент · база знаний · генерация</span></div>
-          <div class="imprint-pulse"></div>
-        </div>
+
+      <div class="hero-hint stagger-item" style="--d:4">
+        <span class="hint-icon">✧</span> проведите курсором по фону — так выглядит карта смыслов
       </div>
     </div>
+
+    <div class="scroll-cue stagger-item" style="--d:5">
+      <span></span>
+    </div>
   </section>
+
+  <!-- MARQUEE: источники -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Telegram</span><i>·</i><span>статьи</span><i>·</i><span>книги</span><i>·</i>
+      <span>интервью</span><i>·</i><span>переписки</span><i>·</i><span>заметки</span><i>·</i>
+      <span>видео</span><i>·</i><span>документы</span><i>·</i><span>продукты</span><i>·</i>
+      <span>Telegram</span><i>·</i><span>статьи</span><i>·</i><span>книги</span><i>·</i>
+      <span>интервью</span><i>·</i><span>переписки</span><i>·</i><span>заметки</span><i>·</i>
+      <span>видео</span><i>·</i><span>документы</span><i>·</i><span>продукты</span><i>·</i>
+    </div>
+  </div>
 
   <!-- PROBLEM -->
   <section id="problem" class="section problem">
     <div class="wrap">
-      <p class="eyebrow">Почему обычные AI-агентства решают это хуже</p>
-      <h2 class="section-title">ИИ — не продукт. Продукт — ваша интеллектуальная модель</h2>
+      <p class="eyebrow" data-reveal>Почему обычные AI-агентства решают это хуже</p>
+      <h2 class="section-title" data-reveal>ИИ — не продукт.<br>Продукт — ваша интеллектуальная модель</h2>
       <div class="problem-grid">
-        <div class="problem-card">
+        <article class="problem-card" data-reveal data-spotlight style="--rd:0">
           <span class="problem-num">01</span>
           <h3>Они настраивают инструмент</h3>
           <p>Большинство AI-подрядчиков подключают готовую модель к вашим документам и называют это ассистентом. Внутри — ноль понимания вашей логики мышления.</p>
-        </div>
-        <div class="problem-card">
+        </article>
+        <article class="problem-card" data-reveal data-spotlight style="--rd:1">
           <span class="problem-num">02</span>
           <h3>Знания остаются в вашей голове</h3>
           <p>Все ценные решения, формулировки и подходы существуют только в переписках и памяти — и исчезают, если вас нет рядом.</p>
-        </div>
-        <div class="problem-card">
+        </article>
+        <article class="problem-card" data-reveal data-spotlight style="--rd:2">
           <span class="problem-num">03</span>
           <h3>Масштаб упирается в вас лично</h3>
           <p>Ученики, клиенты и сотрудники ждут именно вашего ответа — потому что никто, включая ИИ, не научился думать вашим способом.</p>
-        </div>
+        </article>
       </div>
     </div>
   </section>
@@ -102,33 +124,33 @@
   <!-- PROCESS -->
   <section id="process" class="section process">
     <div class="wrap">
-      <p class="eyebrow">Как устроена работа</p>
-      <h2 class="section-title">От исследования — к работающей системе</h2>
+      <p class="eyebrow" data-reveal>Как устроена работа</p>
+      <h2 class="section-title" data-reveal>От исследования — к работающей системе</h2>
       <ol class="process-list">
-        <li class="process-step">
+        <li class="process-step" data-reveal style="--rd:0">
           <span class="step-index">1</span>
-          <div>
+          <div class="step-body">
             <h3>Исследование</h3>
             <p>Анализирую Telegram, статьи, книги, интервью, переписки, заметки, видео и документы — всё, где отражено ваше мышление.</p>
           </div>
         </li>
-        <li class="process-step">
+        <li class="process-step" data-reveal style="--rd:1">
           <span class="step-index">2</span>
-          <div>
+          <div class="step-body">
             <h3>Извлечение</h3>
             <p>Строю карту смыслов, понятийный аппарат, ценности, стиль мышления, логику принятия решений и структуру знаний.</p>
           </div>
         </li>
-        <li class="process-step">
+        <li class="process-step" data-reveal style="--rd:2">
           <span class="step-index">3</span>
-          <div>
+          <div class="step-body">
             <h3>Моделирование</h3>
             <p>Превращаю карту в системный промпт и архитектуру: что система знает, как рассуждает, где отвечает вашим голосом, а где — честно молчит.</p>
           </div>
         </li>
-        <li class="process-step">
+        <li class="process-step" data-reveal style="--rd:3">
           <span class="step-index">4</span>
-          <div>
+          <div class="step-body">
             <h3>Внедрение</h3>
             <p>Собираю рабочую систему — ассистента, базу знаний, агента или генератор контента — и подключаю её к вашим каналам.</p>
           </div>
@@ -137,12 +159,12 @@
     </div>
   </section>
 
-  <!-- WHO -->
+  <!-- AUDIENCE -->
   <section class="section audience">
     <div class="wrap">
-      <p class="eyebrow">Кому это подходит</p>
-      <h2 class="section-title">Экспертам, у которых знания больше, чем времени их передавать</h2>
-      <div class="audience-grid">
+      <p class="eyebrow" data-reveal>Кому это подходит</p>
+      <h2 class="section-title" data-reveal>Экспертам, у которых знания больше, чем времени их передавать</h2>
+      <div class="audience-grid" data-reveal>
         <span class="tag">Основатели компаний</span>
         <span class="tag">Авторы книг</span>
         <span class="tag">Блогеры и спикеры</span>
@@ -156,30 +178,30 @@
   <!-- PRODUCTS -->
   <section id="products" class="section products">
     <div class="wrap">
-      <p class="eyebrow">Продуктовая линейка</p>
-      <h2 class="section-title">Начать можно с малого — и вырасти до полной системы</h2>
+      <p class="eyebrow" data-reveal>Продуктовая линейка</p>
+      <h2 class="section-title" data-reveal>Начать можно с малого — и вырасти до полной системы</h2>
       <div class="products-grid">
-        <div class="product-card">
+        <article class="product-card" data-reveal data-spotlight style="--rd:0">
           <h3>Диагностика мышления</h3>
           <p>Разбор одного источника — Telegram-канала, книги или интервью — с картой смыслов и оценкой потенциала для системы.</p>
-        </div>
-        <div class="product-card">
+        </article>
+        <article class="product-card" data-reveal data-spotlight style="--rd:1">
           <h3>Мини-система</h3>
           <p>Точечный AI-ассистент под одну задачу: ответы на частые вопросы, поиск по материалам, черновики контента вашим голосом.</p>
-        </div>
-        <div class="product-card featured">
+        </article>
+        <article class="product-card featured" data-reveal data-spotlight style="--rd:2">
           <span class="badge">Основной продукт</span>
           <h3>Интеллектуальный слепок</h3>
           <p>Полная модель мышления: системный промпт, база знаний, ассистент и генерация контента — на основе всего массива материалов.</p>
-        </div>
-        <div class="product-card">
+        </article>
+        <article class="product-card" data-reveal data-spotlight style="--rd:3">
           <h3>Сопровождение</h3>
           <p>Регулярное обновление модели по мере роста вашего архива знаний и появления новых материалов.</p>
-        </div>
-        <div class="product-card">
+        </article>
+        <article class="product-card" data-reveal data-spotlight style="--rd:4">
           <h3>Корпоративный проект</h3>
           <p>Моделирование коллективной экспертизы компании: внутренний ассистент для сотрудников, поиск по документации, онбординг.</p>
-        </div>
+        </article>
       </div>
     </div>
   </section>
@@ -187,22 +209,22 @@
   <!-- FAQ -->
   <section id="faq" class="section faq">
     <div class="wrap">
-      <p class="eyebrow">Частые вопросы</p>
-      <h2 class="section-title">Прежде чем написать</h2>
+      <p class="eyebrow" data-reveal>Частые вопросы</p>
+      <h2 class="section-title" data-reveal>Прежде чем написать</h2>
       <div class="faq-list">
-        <details class="faq-item">
+        <details class="faq-item" data-reveal style="--rd:0">
           <summary>Чем это отличается от обычного чат-бота на моих данных?</summary>
           <p>Чат-бот отвечает по документам. Слепок мышления рассуждает вашей логикой — потому что перед сборкой я извлекаю не текст, а структуру мышления: ценности, понятийный аппарат, паттерны решений.</p>
         </details>
-        <details class="faq-item">
+        <details class="faq-item" data-reveal style="--rd:1">
           <summary>Сколько материалов нужно для старта?</summary>
           <p>Достаточно одного насыщенного источника — например, Telegram-канала или книги. На диагностике я честно скажу, хватит ли материала для полноценной системы.</p>
         </details>
-        <details class="faq-item">
+        <details class="faq-item" data-reveal style="--rd:2">
           <summary>Работаете ли вы с компаниями, а не только с личными экспертами?</summary>
           <p>Да — по тому же принципу, только источник знаний не один человек, а команда: документация, переписки, внутренние регламенты.</p>
         </details>
-        <details class="faq-item">
+        <details class="faq-item" data-reveal style="--rd:3">
           <summary>Сколько занимает работа?</summary>
           <p>Диагностика — несколько дней. Полный слепок мышления — от двух до шести недель, в зависимости от объёма материалов и сложности домена.</p>
         </details>
@@ -212,10 +234,13 @@
 
   <!-- CTA -->
   <section id="contact" class="section cta-section">
+    <div class="cta-glow" aria-hidden="true"></div>
     <div class="wrap cta-wrap">
-      <h2>Готовы увидеть карту собственного мышления?</h2>
-      <p>Начнём с диагностики: пришлите один источник — канал, книгу, серию интервью — и я покажу, что из него можно построить.</p>
-      <a class="btn btn-primary btn-lg" href="https://t.me/temsanone" target="_blank" rel="noopener">Написать Артёму</a>
+      <h2 data-reveal>Готовы увидеть карту собственного мышления?</h2>
+      <p data-reveal>Начнём с диагностики: пришлите один источник — канал, книгу, серию интервью — и я покажу, что из него можно построить.</p>
+      <a class="btn btn-primary btn-lg" href="https://t.me/temsanone" target="_blank" rel="noopener" data-reveal>
+        Написать в Telegram
+      </a>
     </div>
   </section>
 
@@ -228,5 +253,6 @@
   </div>
 </footer>
 
+<script src="app.js" defer></script>
 </body>
 </html>
