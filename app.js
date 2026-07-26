@@ -1039,9 +1039,9 @@ function loadImage(src) {
     const moonGeom = (w, h) => {
       const narrow = w / h < 1.05;
       return {
-        cx: w * (narrow ? 0.5 : 0.20),
-        cy: h * (narrow ? 0.3 : 0.36),
-        r: Math.min(w, h) * (narrow ? 0.2 : 0.17),
+        cx: w * (narrow ? 0.52 : 0.20),
+        cy: h * (narrow ? 0.70 : 0.36),
+        r: Math.min(w, h) * (narrow ? 0.23 : 0.17),
         reach: 4.2,
       };
     };
