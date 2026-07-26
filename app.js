@@ -476,6 +476,127 @@ function paintStarfield(ctx, w, h, seed = 7) {
   }
 }
 
+/* ---------- Объёмная стеклянная сфера ----------
+   Луна перестаёт быть плоским диском: узор за ней преломляется внутрь шара,
+   к кромке нарастает френелевский блеск, сверху ложится блик.            */
+
+function applyGlassSphere(ctx, w, h, dpr, { cx, cy, r }) {
+  const W = Math.max(1, Math.floor(w * dpr));
+  const H = Math.max(1, Math.floor(h * dpr));
+  const CX = cx * dpr, CY = cy * dpr, R = r * dpr;
+
+  const x0 = Math.max(0, Math.floor(CX - R - 2));
+  const y0 = Math.max(0, Math.floor(CY - R - 2));
+  const x1 = Math.min(W, Math.ceil(CX + R + 2));
+  const y1 = Math.min(H, Math.ceil(CY + R + 2));
+  if (x1 <= x0 || y1 <= y0) return;
+
+  const src = ctx.getImageData(0, 0, W, H);
+  const out = ctx.createImageData(W, H);
+  out.data.set(src.data);
+  const S = src.data, D = out.data;
+
+  // показатели преломления по каналам — отсюда цветная кайма у кромки
+  const IOR = [1.505, 1.520, 1.538];
+  const SPREAD = 2.15;          // сколько фона собирает шар
+  const F0 = 0.04;              // отражение стекла по нормали
+  const ABSORB = [0.16, 0.10, 0.05];   // стекло съедает красное сильнее синего
+
+  const lx = -0.46, ly = -0.62, lz = 0.64;   // источник света
+  const inv = 1 / Math.hypot(lx, ly, lz);
+
+  const sample = (px, py, ch) => {
+    const sx = px < 0 ? 0 : px >= W ? W - 1 : px | 0;
+    const sy = py < 0 ? 0 : py >= H ? H - 1 : py | 0;
+    return S[(sy * W + sx) * 4 + ch];
+  };
+
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const dx = (x - CX) / R, dy = (y - CY) / R;
+      const q2 = dx * dx + dy * dy;
+      if (q2 > 1.0001) continue;
+
+      const q = Math.min(1, Math.sqrt(q2));
+      const nz = Math.sqrt(Math.max(0, 1 - q2));
+      const ux = q > 0 ? dx / q : 0, uy = q > 0 ? dy / q : 0;
+      const theta = Math.asin(q);
+
+      const px3 = [0, 0, 0];
+      for (let ch = 0; ch < 3; ch++) {
+        // закон Снеллиуса: луч входит и выходит, суммарное отклонение 2(θ−φ),
+        // поэтому у края шар показывает перевёрнутое изображение
+        const phi = Math.asin(Math.min(1, q / IOR[ch]));
+        const sq = Math.sin(2 * phi - theta) * SPREAD;
+        px3[ch] = sample(CX + ux * sq * R, CY + uy * sq * R, ch);
+      }
+
+      let r0 = px3[0], g0 = px3[1], b0 = px3[2];
+
+      // шар собирает свет: внутри поле читается ярче, чем снаружи
+      const gather = 1.18;
+      r0 *= gather; g0 *= gather; b0 *= gather;
+
+      // поглощение по длине пути внутри стекла (закон Бугера)
+      const path = 2 * nz;
+      r0 *= Math.exp(-ABSORB[0] * path);
+      g0 *= Math.exp(-ABSORB[1] * path);
+      b0 *= Math.exp(-ABSORB[2] * path);
+
+      // Френель по Шлику: у кромки стекло отражает окружение
+      const F = F0 + (1 - F0) * Math.pow(1 - nz, 5);
+      const ex = CX + ux * R * 1.7, ey = CY + uy * R * 1.7;
+      r0 = r0 * (1 - F) + sample(ex, ey, 0) * F;
+      g0 = g0 * (1 - F) + sample(ex, ey, 1) * F;
+      b0 = b0 * (1 - F) + sample(ex, ey, 2) * F;
+
+      // блики: узкий зеркальный и широкий мягкий
+      const dot = (dx * lx + dy * ly + nz * lz) * inv;
+      if (dot > 0) {
+        const sharp = Math.pow(dot, 160) * 1.0;
+        const broad = Math.pow(dot, 9) * 0.16;
+        const spec = Math.min(1, sharp + broad);
+        r0 += (255 - r0) * spec;
+        g0 += (255 - g0) * spec;
+        b0 += (255 - b0) * spec;
+      }
+
+      // каустика: свет, собранный шаром, ложится ярким пятном напротив блика
+      const cdx = dx + 0.34, cdy = dy + 0.42;
+      const caustic = Math.exp(-(cdx * cdx + cdy * cdy) * 11) * 0.3;
+      r0 += (252 - r0) * caustic;
+      g0 += (248 - g0) * caustic;
+      b0 += (236 - b0) * caustic;
+
+      // сглаживание кромки, чтобы шар не был вырезан ножницами
+      const cov = Math.min(1, Math.max(0, (1 - q) * R / 1.6));
+      const di = (y * W + x) * 4;
+      D[di]     = S[di]     * (1 - cov) + r0 * cov;
+      D[di + 1] = S[di + 1] * (1 - cov) + g0 * cov;
+      D[di + 2] = S[di + 2] * (1 - cov) + b0 * cov;
+      D[di + 3] = Math.max(S[di + 3], Math.round(cov * 255));
+    }
+  }
+
+  ctx.putImageData(out, 0, 0);
+
+  // сияние вокруг стекла и мягкая тень под ним
+  ctx.save();
+  const halo = ctx.createRadialGradient(cx, cy, r * 0.98, cx, cy, r * 1.85);
+  halo.addColorStop(0, 'rgba(198, 218, 252, 0.26)');
+  halo.addColorStop(1, 'rgba(198, 218, 252, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.85, 0, Math.PI * 2); ctx.fill();
+
+  ctx.globalCompositeOperation = 'multiply';
+  const shade = ctx.createRadialGradient(cx + r * 0.3, cy + r * 1.02, 0, cx + r * 0.3, cy + r * 1.02, r * 0.8);
+  shade.addColorStop(0, 'rgba(12, 18, 52, 0.16)');
+  shade.addColorStop(1, 'rgba(12, 18, 52, 0)');
+  ctx.fillStyle = shade;
+  ctx.beginPath(); ctx.ellipse(cx + r * 0.26, cy + r * 1.06, r * 0.95, r * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 /* ---------- Мазок ---------- */
 
 function paintStroke(ctx, angleAt, x0, y0, cfg) {
@@ -484,7 +605,7 @@ function paintStroke(ctx, angleAt, x0, y0, cfg) {
     alpha = 0.5, color, relief = true,
   } = cfg;
 
-  const step = Math.max(3, Math.min(7, length / 4));
+  const step = Math.max(2.5, Math.min(5, length / 14));
   const pts = [];
   let x = x0, y = y0;
   // мазок начинается чуть раньше точки посева — кисть проходит сквозь неё
@@ -524,9 +645,9 @@ function paintStroke(ctx, angleAt, x0, y0, cfg) {
       const [nx, ny] = pts[Math.min(i + 1, pts.length - 1)];
       const dx = nx - px, dy = ny - py;
       const len = Math.hypot(dx, dy) || 1;
-      const fray = 1 + (i / pts.length) * 0.35;
-      const X = px + (-dy / len) * offset * fray + (Math.random() - 0.5) * 1.6;
-      const Y = py + (dx / len) * offset * fray + (Math.random() - 0.5) * 1.6;
+      const fray = 1 + (i / pts.length) * 0.12;
+      const X = px + (-dy / len) * offset * fray + (Math.random() - 0.5) * 0.5;
+      const Y = py + (dx / len) * offset * fray + (Math.random() - 0.5) * 0.5;
       if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
     }
     ctx.stroke();
@@ -694,25 +815,38 @@ function createPainting(canvas, options = {}) {
   /* Мазок по натуре идёт прямо, вдоль линии равной светлоты: направление
      берём один раз в точке посева, дальше — лишь лёгкое дыхание кисти.  */
   function directedAngle(x0, y0) {
-    const [gx, gy, mag] = field.gradientAt(x0 / w, y0 / h);
-    const base = mag > 0.008
-      ? Math.atan2(gy, gx) + Math.PI / 2
-      // запасной вариант — низкочастотное поле: соседние мазки согласованы,
-      // а не смотрят в разные стороны
-      : noise(x0 * scale * 0.3, y0 * scale * 0.3) * Math.PI * 2;
-    return (x, y) => base + noise(x * 0.004, y * 0.004) * 0.22;
+    let prev = null;
+    const MAX_TURN = 0.13;   // предел кривизны: лента не сворачивается в спираль
+
+    return (x, y) => {
+      const [gx, gy, mag] = field.gradientAt(x / w, y / h);
+      let target = mag > 0.008
+        ? Math.atan2(gy, gx) + Math.PI / 2
+        : noise(x * scale * 0.3, y * scale * 0.3) * Math.PI * 2;
+
+      if (prev === null) { prev = target; return prev; }
+
+      // линия равной светлоты не имеет направления — выбираем то, что вперёд
+      let d = Math.atan2(Math.sin(target - prev), Math.cos(target - prev));
+      if (Math.abs(d) > Math.PI / 2) {
+        target += Math.PI;
+        d = Math.atan2(Math.sin(target - prev), Math.cos(target - prev));
+      }
+      prev += Math.max(-MAX_TURN, Math.min(MAX_TURN, d));
+      return prev;
+    };
   }
 
   // Проходы: от крупной кисти к мелкой — как пишут с натуры
   /* Мазок должен быть заметно короче черты лица, иначе он её смазывает.
      Отсюда умеренная длина и три калибра кисти.                        */
   const PASSES = [
-    // подмалёвок: закрывает форму целиком
-    { spacing: 9.5, len: [26, 54], wid: [10, 17], minDetail: -1,   bristles: 7, relief: true },
-    // проработка по краям форм
-    { spacing: 6.0, len: [16, 34], wid: [5, 9],   minDetail: 0.09, bristles: 5, relief: false },
-    // детали: глаза, оправа, губы
-    { spacing: 3.8, len: [8, 18],  wid: [2, 4],   minDetail: 0.24, bristles: 4, relief: false },
+    // длинные ленты ведут основной рисунок узора
+    { spacing: 9.5, len: [90, 200], wid: [3.6, 7.5], minDetail: -1,   bristles: 3, relief: false },
+    // средние подхватывают ход линий
+    { spacing: 6.2, len: [50, 115], wid: [2.2, 4.6], minDetail: 0.06, bristles: 2, relief: false },
+    // короткие расставляют акценты там, где узор сгущается
+    { spacing: 4.2, len: [22, 58],  wid: [1.2, 2.8], minDetail: 0.2,  bristles: 2, relief: false },
   ];
 
   function buildJobs() {
@@ -766,7 +900,7 @@ function createPainting(canvas, options = {}) {
       length: rng(pass.len) * k * (1 - detail * 0.3),
       width: rng(pass.wid) * k,
       bristles: pass.bristles,
-      alpha: alpha * (0.55 + (1 - lum) * 0.55),
+      alpha: alpha * (0.5 + (1 - lum) * 0.5),
       color: colorFor(lum),
       relief: pass.relief && lum < 0.55,
     });
@@ -905,9 +1039,9 @@ function loadImage(src) {
     const moonGeom = (w, h) => {
       const narrow = w / h < 1.05;
       return {
-        cx: w * (narrow ? 0.5 : 0.29),
-        cy: h * (narrow ? 0.3 : 0.38),
-        r: Math.min(w, h) * (narrow ? 0.2 : 0.185),
+        cx: w * (narrow ? 0.5 : 0.20),
+        cy: h * (narrow ? 0.3 : 0.36),
+        r: Math.min(w, h) * (narrow ? 0.2 : 0.17),
         reach: 4.2,
       };
     };
@@ -932,21 +1066,14 @@ function loadImage(src) {
         ctx.fillStyle = sky;
         ctx.fillRect(0, 0, w, h);
 
-        const disc = ctx.createRadialGradient(
-          cx - r * 0.18, cy - r * 0.2, r * 0.05, cx, cy, r
-        );
-        disc.addColorStop(0.00, 'rgba(247, 243, 230, 0.97)');
-        disc.addColorStop(0.62, 'rgba(226, 231, 240, 0.93)');
-        disc.addColorStop(0.93, 'rgba(178, 196, 228, 0.85)');
-        disc.addColorStop(1.00, 'rgba(150, 174, 214, 0)');
-        ctx.fillStyle = disc;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
       },
 
       makeField: (w, h) => buildFractalField(w, h, moonGeom(w, h)),
-      overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 20260726),
+      overlay: (ctx, w, h) => {
+        const { cx, cy, r } = moonGeom(w, h);
+        applyGlassSphere(ctx, w, h, Math.min(window.devicePixelRatio || 1, 1.5), { cx, cy, r });
+        paintStarfield(ctx, w, h, 20260726);
+      },
     }).start();
   }
 

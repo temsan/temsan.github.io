@@ -173,8 +173,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
 .paint-scrim {
   position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(260deg,
-    var(--linen) 0%, rgba(239,233,220,0.96) 30%,
-    rgba(239,233,220,0.7) 44%, rgba(239,233,220,0.1) 60%, transparent 76%);
+    var(--linen) 0%, var(--linen) 34%, rgba(239,233,220,0.97) 46%,
+    rgba(239,233,220,0.78) 56%, rgba(239,233,220,0.18) 70%, transparent 84%);
 }
 
 /* фигура слева — текст встаёт справа */
