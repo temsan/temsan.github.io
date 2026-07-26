@@ -81,6 +81,43 @@ const hsla = (c, a) => `hsla(${c.h.toFixed(1)}, ${c.s.toFixed(1)}%, ${c.l.toFixe
    Яркость снимка решает, где краска ложится густо и какого она тона,
    а градиент яркости задаёт направление мазка — так пишут по форме.  */
 
+/* Общая обвязка над растровым полем: билинейная светлота, многомасштабный
+   градиент для направления мазка и мелкая деталь для калибра кисти.       */
+function fieldFromPixels(data, mw, mh, drawnWidth) {
+  const at = (px, py) => {
+    const cx = px < 0 ? 0 : px > mw - 1 ? mw - 1 : px;
+    const cy = py < 0 ? 0 : py > mh - 1 ? mh - 1 : py;
+    const i = (cy * mw + cx) * 4;
+    return (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+  };
+
+  const lum = (u, v) => {
+    const fx = u * mw - 0.5, fy = v * mh - 0.5;
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    const tx = fx - x0, ty = fy - y0;
+    const a = at(x0, y0),     b = at(x0 + 1, y0);
+    const c = at(x0, y0 + 1), d = at(x0 + 1, y0 + 1);
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  };
+
+  const gradAtScale = (u, v, px) => {
+    const d = px / mw;
+    const gx = lum(u + d, v) - lum(u - d, v);
+    const gy = lum(u, v + d) - lum(u, v - d);
+    return [gx, gy, Math.hypot(gx, gy)];
+  };
+
+  const gradientAt = (u, v) => {
+    for (const px of [1.4, 4, 9, 18]) {
+      const g = gradAtScale(u, v, px);
+      if (g[2] > 0.02) return g;
+    }
+    return gradAtScale(u, v, 18);
+  };
+
+  return { lum, gradientAt, detailAt: (u, v) => gradAtScale(u, v, 1.4)[2], drawnWidth };
+}
+
 function buildImageField(img, w, h, box) {
   const SCALE = 3;
   const mw = Math.max(2, Math.ceil(w / SCALE));
@@ -104,47 +141,136 @@ function buildImageField(img, w, h, box) {
   const drawnWidth = dw * SCALE;
 
   const data = x.getImageData(0, 0, mw, mh).data;
+  return fieldFromPixels(data, mw, mh, drawnWidth);
+}
 
-  const at = (px, py) => {
-    const cx = px < 0 ? 0 : px > mw - 1 ? mw - 1 : px;
-    const cy = py < 0 ? 0 : py > mh - 1 ? mh - 1 : py;
-    const i = (cy * mw + cx) * 4;
-    return (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+/* ---------- Фрактальное поле: луна в узорной ночи ----------
+   Основа — фрактальный шум с доменным искажением: он даёт мраморные
+   завихрения, по которым кисть идёт сама. Поверх — филигрань множества
+   Жюлиа: самоподобные нити, дающие узору упорядоченность.
+   Поле считается один раз в мелком разрешении, дальше только выборка.   */
+
+function seededRandom(seed) {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6D2B79F5;
+    let x = Math.imul(t ^ (t >>> 15), 1 | t);
+    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Глубокое поле: далёкие галактики. Каждая — повёрнутый эллипс с ядром
+   и намёком на рукава; кисть пишет их так же, как облака ночи.        */
+function makeGalaxies(w, h, rnd, count) {
+  return Array.from({ length: count }, () => {
+    const a = rnd() * Math.PI;
+    return {
+      x: rnd() * w, y: rnd() * h,
+      rx: (0.02 + rnd() * 0.055) * Math.min(w, h),
+      ry: 0, rot: a, arms: rnd() > 0.45,
+      cos: Math.cos(a), sin: Math.sin(a),
+      bright: 0.3 + rnd() * 0.5,
+    };
+  }).map((g) => (g.ry = g.rx * (0.28 + Math.random() * 0.55), g));
+}
+
+function buildFractalField(w, h, { cx, cy, r, reach = 4.2 }) {
+  const SCALE = 3;
+  const mw = Math.max(2, Math.ceil(w / SCALE));
+  const mh = Math.max(2, Math.ceil(h / SCALE));
+  const noise = makePerlin();
+
+  const fbm = (x, y, oct = 5) => {
+    let a = 0.5, f = 1, sum = 0;
+    for (let i = 0; i < oct; i++) { sum += a * noise(x * f, y * f); f *= 2; a *= 0.5; }
+    return sum;
   };
 
-  /* Билинейная выборка: маска втрое мельче холста, и выборка «по клетке»
-     давала бы ступенчатые градиенты — на кромке стекла это видно как пиксели. */
-  const lum = (u, v) => {
-    const fx = u * mw - 0.5, fy = v * mh - 0.5;
-    const x0 = Math.floor(fx), y0 = Math.floor(fy);
-    const tx = fx - x0, ty = fy - y0;
-    const a = at(x0, y0),     b = at(x0 + 1, y0);
-    const c = at(x0, y0 + 1), d = at(x0 + 1, y0 + 1);
-    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
-  };
-
-  const gradAtScale = (u, v, px) => {
-    const d = px / mw;
-    const gx = lum(u + d, v) - lum(u - d, v);
-    const gy = lum(u, v + d) - lum(u, v - d);
-    return [gx, gy, Math.hypot(gx, gy)];
-  };
-
-  /* Многомасштабный градиент: на гладких участках мелкая разность почти нулевая,
-     и направление мазка выродилось бы в случайное. Если рядом ничего не найдено,
-     смотрим шире — там читается общее направление формы.                      */
-  const gradientAt = (u, v) => {
-    for (const px of [1.4, 4, 9, 18]) {
-      const g = gradAtScale(u, v, px);
-      if (g[2] > 0.02) return g;
+  // самоподобная нить: гладкий счётчик убегания для множества Жюлиа
+  const julia = (zx, zy) => {
+    const cRe = -0.7269, cIm = 0.1889;
+    let x = zx, y = zy, i = 0;
+    for (; i < 26; i++) {
+      const x2 = x * x, y2 = y * y;
+      if (x2 + y2 > 16) break;
+      const nx = x2 - y2 + cRe;
+      y = 2 * x * y + cIm; x = nx;
     }
-    return gradAtScale(u, v, 18);
+    if (i >= 26) return 1;
+    const sm = i + 1 - Math.log(Math.log(Math.hypot(x, y))) / Math.LN2;
+    return sm / 26;
   };
 
-  // мелкая деталь — только по ближней разности: по ней выбирается размер кисти
-  const detailAt = (u, v) => gradAtScale(u, v, 1.4)[2];
+  const smooth = (a, b, t) => {
+    const x = Math.min(1, Math.max(0, (t - a) / (b - a)));
+    return x * x * (3 - 2 * x);
+  };
 
-  return { lum, gradientAt, detailAt, drawnWidth };
+  const c = document.createElement('canvas');
+  c.width = mw; c.height = mh;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(mw, mh);
+  const px = img.data;
+
+  const S = 0.0016 * SCALE;   // масштаб узора
+  const rnd = seededRandom(20260726);
+  const galaxies = makeGalaxies(w, h, rnd, 9);
+
+  for (let py = 0; py < mh; py++) {
+    for (let pxi = 0; pxi < mw; pxi++) {
+      const X = pxi * SCALE, Y = py * SCALE;
+      const d = Math.hypot(X - cx, Y - cy) / r;
+
+      // вклад далёких галактик
+      let gal = 0;
+      for (const g of galaxies) {
+        const dx = X - g.x, dy = Y - g.y;
+        const ex = (dx * g.cos + dy * g.sin) / g.rx;
+        const ey = (-dx * g.sin + dy * g.cos) / g.ry;
+        const q = ex * ex + ey * ey;
+        if (q > 6) continue;
+        let v = Math.exp(-q * 1.15) * g.bright;
+        if (g.arms) {
+          // намёк на спиральные рукава
+          const ang = Math.atan2(ey, ex) + Math.sqrt(q) * 2.4;
+          v *= 0.62 + 0.38 * Math.abs(Math.cos(ang));
+        }
+        gal += v;
+      }
+
+      let L;
+      if (d < 1) {
+        // диск луны: моря и потемнение к лимбу
+        const seas = fbm(X * 0.006, Y * 0.006, 4) * 0.28;
+        L = Math.min(1, Math.max(0, 0.92 * (1 - Math.pow(d, 3) * 0.3) + seas * 0.16));
+      } else {
+        // доменное искажение — мраморные завихрения ночи
+        const x = X * S, y = Y * S;
+        const q1 = fbm(x, y), q2 = fbm(x + 5.2, y + 1.3);
+        const r1 = fbm(x + 4 * q1 + 1.7, y + 4 * q2 + 9.2);
+        const r2 = fbm(x + 4 * q1 + 8.3, y + 4 * q2 + 2.8);
+        const f = (fbm(x + 4 * r1, y + 4 * r2) + 1) / 2;
+
+        // филигрань Жюлиа вокруг луны
+        const jz = 2.6 / (r * 3.2);
+        const jv = julia((X - cx) * jz, (Y - cy) * jz);
+        const thread = Math.pow(1 - Math.abs(((jv * 7) % 1) * 2 - 1), 8) * 0.5;
+
+        const night = 0.12 + 0.86 * smooth(1.0, reach, d);
+        L = night + (f - 0.5) * 0.42 * (1 - smooth(1.0, reach, d))
+            + thread * (1 - smooth(1.0, reach * 0.8, d))
+            + Math.min(0.55, gal);
+        L = Math.min(1, Math.max(0, L));
+      }
+
+      const v = (L * 255) | 0;
+      const i = (py * mw + pxi) * 4;
+      px[i] = px[i + 1] = px[i + 2] = v; px[i + 3] = 255;
+    }
+  }
+
+  return fieldFromPixels(px, mw, mh, r * 2);
 }
 
 /* ---------- Луна: процедурное поле светлоты ----------
@@ -284,6 +410,72 @@ function applyLiquidGlass(ctx, w, h, dpr, thickness, opts = {}) {
   ctx.putImageData(out, 0, 0);
 }
 
+/* ---------- Звёздная россыпь поверх живописи ----------
+   Точки звёзд мельче любой кисти, поэтому кладутся последними:
+   иначе широкий мазок стёр бы их вместе с лучами и хвостами комет.   */
+
+function paintStarfield(ctx, w, h, seed = 7) {
+  const rnd = seededRandom(seed);
+  const dim = Math.min(w, h);
+
+  const star = (x, y, rad, warm, spikes) => {
+    const hue = warm ? 42 : 214;
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+
+    if (!spikes) return;
+    // дифракционные лучи — подпись телескопа
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
+    ctx.lineWidth = Math.max(0.6, rad * 0.35);
+    const L = rad * 13;
+    ctx.beginPath();
+    ctx.moveTo(x - L, y); ctx.lineTo(x + L, y);
+    ctx.moveTo(x, y - L); ctx.lineTo(x, y + L);
+    ctx.stroke();
+  };
+
+  // мелкая пыль далёких светил
+  const dust = Math.round(w * h / 5200);
+  for (let i = 0; i < dust; i++) {
+    const x = rnd() * w, y = rnd() * h;
+    const a = 0.12 + rnd() * 0.5;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
+    ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // заметные звёзды, часть — с лучами
+  const bright = Math.round(dim / 42);
+  for (let i = 0; i < bright; i++) {
+    star(rnd() * w, rnd() * h, 0.9 + rnd() * 1.7, rnd() > 0.82, rnd() > 0.55);
+  }
+
+  // кометы: ядро и тающий хвост
+  const comets = 2 + ((rnd() * 2) | 0);
+  for (let i = 0; i < comets; i++) {
+    const x = rnd() * w, y = rnd() * h * 0.75;
+    const ang = -0.9 + rnd() * 0.7;
+    const len = dim * (0.1 + rnd() * 0.16);
+    const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
+
+    const tail = ctx.createLinearGradient(x, y, ex, ey);
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
+    ctx.strokeStyle = tail;
+    ctx.lineWidth = 1.6 + rnd() * 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+
+    star(x, y, 1.5 + rnd(), false, true);
+  }
+}
+
 /* ---------- Мазок ---------- */
 
 function paintStroke(ctx, angleAt, x0, y0, cfg) {
@@ -416,6 +608,7 @@ function createPainting(canvas, options = {}) {
     skipLight = false,      // писать ли светлые участки (для луны — да)
     underpaint = null,      // тонировка холста перед мазками
     sizeAt = () => 1,       // калибр кисти по горизонтали: слева мельче, справа шире
+    overlay = null,         // что кладётся последним, поверх готовой живописи
   } = options;
 
   let w, h, dpr, field = null, glassField = null, budget = 0, painted = 0, raf = null;
@@ -486,14 +679,16 @@ function createPainting(canvas, options = {}) {
   /* Цвет мазка выводится из светлоты натуры: тени — густой ультрамарин,
      света — разбел. Изредка тёплый рефлекс, чтобы синее звучало.        */
   function colorFor(lum) {
-    if (Math.random() < 0.05) {
-      return jitter({ h: 28 + Math.random() * 18, s: 50, l: 34 + lum * 40 }, 0.7);
+    // редкий тёплый рефлекс — ровно столько, чтобы синее зазвучало
+    if (Math.random() < 0.035) {
+      return jitter({ h: 34 + Math.random() * 12, s: 46, l: 40 + lum * 34 }, 0.5);
     }
+    // узкий диапазон вокруг ультрамарина: мазки читаются как одна семья
     return jitter({
-      h: 224 + (Math.random() - 0.5) * 26,
-      s: 38 + (1 - lum) * 40,
-      l: 6 + lum * 80,
-    }, 0.7);
+      h: 226 + (Math.random() - 0.5) * 16,
+      s: 42 + (1 - lum) * 30,
+      l: 8 + lum * 78,
+    }, 0.45);
   }
 
   /* Мазок по натуре идёт прямо, вдоль линии равной светлоты: направление
@@ -593,10 +788,11 @@ function createPainting(canvas, options = {}) {
 
   let jobs = null;
   let startedAt = 0;
-  const PAINT_DEADLINE = 3500;
+  const PAINT_DEADLINE = 5200;
 
   // живопись дописана — опускаем стеклянную фигуру поверх неё
   function finish() {
+    if (overlay) overlay(ctx, w, h);
     if (!glassField) return;
     applyLiquidGlass(ctx, w, h, dpr, thicknessAt, {
       ...glass,
@@ -705,27 +901,14 @@ function loadImage(src) {
 (async function initPaintings() {
   const hero = document.getElementById('paint-hero');
   if (hero) {
-    const portrait = await loadImage(hero.dataset.source || 'portrait.jpg');
-
-    // куда встаёт фигура: на широком экране справа, на телефоне — ниже текста
-    const figureBox = (w, h) => (
-      w / h < 1.05
-        ? { x: 0.04, y: 0.34, w: 0.92, h: 0.64 }
-        // широкий экран: фигура слева, текст уходит вправо
-        : { x: 0.0, y: 0.12, w: 0.375, h: 0.88 }
-    );
-
     // геометрия луны — общая для подмалёвка и для поля мазков
     const moonGeom = (w, h) => {
-      const b = figureBox(w, h);
       const narrow = w / h < 1.05;
       return {
-        // нимб за головой: диск заметно меньше фигуры,
-        // тело остаётся на тёмном небе и стекло читается
-        cx: (b.x + b.w * (narrow ? 0.78 : 0.92)) * w,
-        cy: (b.y + b.h * (narrow ? 0.12 : 0.16)) * h,
-        r: Math.min(w, h) * (narrow ? 0.17 : 0.165),
-        reach: 5.0,
+        cx: w * (narrow ? 0.5 : 0.29),
+        cy: h * (narrow ? 0.3 : 0.38),
+        r: Math.min(w, h) * (narrow ? 0.2 : 0.185),
+        reach: 4.2,
       };
     };
 
@@ -733,8 +916,8 @@ function loadImage(src) {
       alpha: 0.9,
       interactive: true,
       skipLight: true,
-      // у фигуры кисть мельче и точнее, к правому краю — широкая и вольная
-      sizeAt: (u) => 0.72 + Math.pow(Math.max(0, u - 0.1) / 0.9, 1.5) * 2.6,
+      // у луны кисть мельче и точнее, к правому краю — широкая и вольная
+      sizeAt: (u) => 0.7 + Math.pow(Math.max(0, u - 0.12) / 0.88, 1.5) * 2.4,
 
       /* Тонировка холста: ночь и диск луны кладутся сплошным тоном,
          иначе отдельные мазки висят в пустоте и не образуют неба. */
@@ -744,7 +927,7 @@ function loadImage(src) {
         const sky = ctx.createRadialGradient(cx, cy, r * 0.9, cx, cy, r * reach);
         sky.addColorStop(0.00, 'rgba(15, 22, 66, 0.96)');
         sky.addColorStop(0.22, 'rgba(20, 32, 94, 0.92)');
-        sky.addColorStop(0.55, 'rgba(31, 53, 168, 0.45)');
+        sky.addColorStop(0.55, 'rgba(31, 53, 168, 0.42)');
         sky.addColorStop(1.00, 'rgba(31, 53, 168, 0)');
         ctx.fillStyle = sky;
         ctx.fillRect(0, 0, w, h);
@@ -762,17 +945,8 @@ function loadImage(src) {
         ctx.fill();
       },
 
-      // луна встаёт за головой
-      makeField: (w, h) => makeMoonField(w, h, moonGeom(w, h)),
-      // портрет — не краска, а линза поверх написанной луны
-      glass: {
-        image: portrait,
-        box: figureBox,
-        refraction: 95,
-        tint: [206, 222, 248],
-        rim: 0.32,
-        ghost: 0.66,
-      },
+      makeField: (w, h) => buildFractalField(w, h, moonGeom(w, h)),
+      overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 20260726),
     }).start();
   }
 
