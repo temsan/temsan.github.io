@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Spectral:ital,wght@0,300;0,400;0,500;1,300&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=14">
+<link rel="stylesheet" href="styles.css?v=24">
 </head>
 <body>
 
@@ -59,39 +59,60 @@
 
 <main id="top">
 
-  <!-- HERO -->
+  <!-- HERO: живопись во весь экран, заголовок — стекло поверх неё -->
   <section class="hero">
     <div class="paint-host">
       <canvas id="paint-hero" role="img"
               aria-label="Написанная мазками луна в ультрамариновой ночи"></canvas>
-      <div class="paint-scrim"></div>
     </div>
-
-    <div class="wrap hero-inner">
-      <p class="eyebrow stagger" style="--d:0">Слепок мышления · цифровая модель вашего ума</p>
-
-      <h1 class="stagger" style="--d:1">
-        Я пишу портрет
-        <span class="brushed">вашего мышления</span>
-        — и превращаю его в работающую систему
+    <div class="hero-inner">
+      <h1 class="hero-title">
+        Я пишу портрет<br>
+        <span class="accent">вашего мышления</span>
       </h1>
+    </div>
+    <p class="hero-hint stagger" style="--d:4">
+      <span class="hint-brush"></span> ведите курсором — картина пишется под рукой
+    </p>
+  </section>
 
-      <p class="lede stagger" style="--d:2">
-        Исследую весь ваш цифровой след: соцсети и мессенджеры, тексты, интервью,
-        книги. Извлекаю карту смыслов, понятийный аппарат и логику решений —
-        и превращаю их в работающую интеллектуальную систему.
+  <!-- Текст живёт отдельной полосой, чтобы не теснить холст -->
+  <section class="hero-copy">
+    <div class="wrap copy-inner">
+      <p class="eyebrow stagger" style="--d:0">Слепок мышления · цифровая модель вашего ума</p>
+      <p class="lede stagger" style="--d:1">
+        Превращаю ваше мышление в работающую систему. Исследую весь цифровой след:
+        соцсети и мессенджеры, тексты, интервью, книги. Строю граф знаний,
+        собираю понятийный аппарат и логику решений, дообучаю модель под ваш стиль.
       </p>
-
-      <div class="hero-actions stagger" style="--d:3">
+      <div class="hero-actions stagger" style="--d:2">
         <a class="btn btn-paint" href="https://t.me/temsanone" target="_blank" rel="noopener">
           Получить разбор мышления
         </a>
         <a class="btn btn-quiet" href="#process">Как это устроено →</a>
       </div>
+    </div>
+  </section>
 
-      <p class="hero-hint stagger" style="--d:4">
-        <span class="hint-brush"></span> проведите курсором по холсту — картина пишется под рукой
-      </p>
+  <!-- ПОЛОСА ДОВЕРИЯ -->
+  <section class="trust">
+    <div class="wrap trust-grid">
+      <div class="trust-item" data-reveal style="--rd:0">
+        <span class="trust-key">18 лет в IT</span>
+        <span class="trust-val">Из них два года — практический AI: агенты, RAG, дообучение моделей</span>
+      </div>
+      <div class="trust-item" data-reveal style="--rd:1">
+        <span class="trust-key">Под ключ</span>
+        <span class="trust-val">Исследование, граф знаний, сборка, внедрение и сопровождение в одних руках</span>
+      </div>
+      <div class="trust-item" data-reveal style="--rd:2">
+        <span class="trust-key">По договору и NDA</span>
+        <span class="trust-val">Работа в правовом поле, обработка данных по 152-ФЗ, доступы закрываются по завершении</span>
+      </div>
+      <div class="trust-item" data-reveal style="--rd:3">
+        <span class="trust-key">Прозрачная смета</span>
+        <span class="trust-val">Этапы и стоимость фиксируются до старта, объём работ понятен заранее</span>
+      </div>
     </div>
   </section>
 
@@ -150,14 +171,14 @@
           <span class="step-dot"><i>2</i></span>
           <div class="step-body">
             <h3>Извлечение</h3>
-            <p>Строю карту смыслов, понятийный аппарат, ценности, стиль мышления, логику принятия решений и структуру знаний.</p>
+            <p>Строю карту смыслов и граф знаний — дерево понятий со связями между ними. Отдельно фиксирую ценности, стиль мышления и логику принятия решений.</p>
           </div>
         </li>
         <li class="process-step" data-reveal style="--rd:2">
           <span class="step-dot"><i>3</i></span>
           <div class="step-body">
             <h3>Моделирование</h3>
-            <p>Превращаю карту в системный промпт и архитектуру: что система знает, как рассуждает, где отвечает вашим голосом, а где честно обозначает границу знания.</p>
+            <p>Превращаю граф в архитектуру: системный промпт, поиск по знаниям, а где нужно — дообучение модели под ваш стиль. Система знает, как рассуждать вашим способом и где честно обозначить границу знания.</p>
           </div>
         </li>
         <li class="process-step" data-reveal style="--rd:3">
@@ -187,6 +208,36 @@
     </div>
   </section>
 
+  <!-- ПРОВОДНИКАМ -->
+  <section class="section creators">
+    <div class="wrap">
+      <p class="eyebrow" data-reveal>Проводникам: блогерам, спикерам, авторам</p>
+      <h2 class="section-title" data-reveal>Ваш голос остаётся вашим — <em>и начинает работать без вас</em></h2>
+      <div class="grid-2">
+        <article class="panel" data-reveal style="--rd:0">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <h3>Голос под вашим контролем</h3>
+          <p>Задаём стоп-темы и границы: о чём система говорит, о чём молчит и где обязана передать вопрос вам. По умолчанию она готовит черновик, а публикуете вы.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:1">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <h3>Архив начинает приносить</h3>
+          <p>Годы эфиров, постов и разборов превращаются в актив: наставник для подписчиков, база курса, поиск по вашим материалам — с опорой на то, что вы уже сказали.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:2">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <h3>Директ и комментарии</h3>
+          <p>Повторяющиеся вопросы аудитории закрывает ассистент вашим голосом и с вашей логикой. Личное внимание остаётся там, где оно действительно нужно.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:3">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <h3>Модель принадлежит вам</h3>
+          <p>Архив и обученная модель остаются вашей собственностью, по желанию — в вашем контуре. Пользуетесь через Telegram и браузер, без разворачивания инфраструктуры.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
   <!-- PRODUCTS -->
   <section id="products" class="section products">
     <div class="wrap">
@@ -207,7 +258,7 @@
           <span class="panel-edge" aria-hidden="true"></span>
           <span class="badge">Основной продукт</span>
           <h3>Интеллектуальный слепок</h3>
-          <p>Полная модель мышления: системный промпт, база знаний, ассистент и генерация контента — на основе всего массива материалов.</p>
+          <p>Полная модель мышления: граф знаний, системный промпт, дообученная под ваш стиль модель, ассистент и генерация контента — на основе всего массива материалов.</p>
         </article>
         <article class="panel" data-reveal style="--rd:3">
           <span class="panel-edge" aria-hidden="true"></span>
@@ -242,6 +293,14 @@
           <p>Да, по тому же принципу: источником знаний становится команда — документация, переписки, внутренние регламенты.</p>
         </details>
         <details class="faq-item" data-reveal style="--rd:3">
+          <summary>Сохранится ли мой голос и кому принадлежит модель?</summary>
+          <p>Голос задаётся вашими же формулировками и правилами: что говорить, о чём молчать, где передать вопрос вам. Перед запуском вы принимаете систему на своих примерах. Архив и обученная модель остаются вашей собственностью.</p>
+        </details>
+        <details class="faq-item" data-reveal style="--rd:4">
+          <summary>Как оформляются отношения и что с конфиденциальностью?</summary>
+          <p>Работаем по договору с NDA. Персональные данные обрабатываются в рамках 152-ФЗ, материалы используются исключительно для вашего проекта. По желанию всё остаётся в вашем контуре, а по завершении доступы закрываются и рабочие копии удаляются.</p>
+        </details>
+        <details class="faq-item" data-reveal style="--rd:5">
           <summary>Сколько занимает работа?</summary>
           <p>Диагностика — несколько дней. Полный слепок мышления — от двух до шести недель, в зависимости от объёма материалов и сложности домена.</p>
         </details>

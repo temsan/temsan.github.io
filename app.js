@@ -175,7 +175,12 @@ function makeGalaxies(w, h, rnd, count) {
   }).map((g) => (g.ry = g.rx * (0.28 + Math.random() * 0.55), g));
 }
 
-function buildFractalField(w, h, { cx, cy, r, reach = 4.2 }) {
+/* ---------- Поле: потоки, стекающиеся в ядро ----------
+   Смысл продукта буквально: разрозненные следы сходятся в одну модель.
+   Линии равной светлоты здесь — логарифмические спирали, поэтому кисть,
+   идущая вдоль них, рисует рукава, втекающие в светящееся ядро.        */
+
+function buildGalaxyField(w, h, { cx, cy, r, reach = 3.4 }) {
   const SCALE = 3;
   const mw = Math.max(2, Math.ceil(w / SCALE));
   const mh = Math.max(2, Math.ceil(h / SCALE));
@@ -185,21 +190,6 @@ function buildFractalField(w, h, { cx, cy, r, reach = 4.2 }) {
     let a = 0.5, f = 1, sum = 0;
     for (let i = 0; i < oct; i++) { sum += a * noise(x * f, y * f); f *= 2; a *= 0.5; }
     return sum;
-  };
-
-  // самоподобная нить: гладкий счётчик убегания для множества Жюлиа
-  const julia = (zx, zy) => {
-    const cRe = -0.7269, cIm = 0.1889;
-    let x = zx, y = zy, i = 0;
-    for (; i < 26; i++) {
-      const x2 = x * x, y2 = y * y;
-      if (x2 + y2 > 16) break;
-      const nx = x2 - y2 + cRe;
-      y = 2 * x * y + cIm; x = nx;
-    }
-    if (i >= 26) return 1;
-    const sm = i + 1 - Math.log(Math.log(Math.hypot(x, y))) / Math.LN2;
-    return sm / 26;
   };
 
   const smooth = (a, b, t) => {
@@ -213,58 +203,32 @@ function buildFractalField(w, h, { cx, cy, r, reach = 4.2 }) {
   const img = ctx.createImageData(mw, mh);
   const px = img.data;
 
-  const S = 0.0016 * SCALE;   // масштаб узора
-  const rnd = seededRandom(20260726);
-  const galaxies = makeGalaxies(w, h, rnd, 9);
+  const ARMS = 3;        // число рукавов
+  const TIGHT = 2.6;     // закрутка: чем больше, тем круче спираль
+  const S = 0.0022 * SCALE;
 
   for (let py = 0; py < mh; py++) {
     for (let pxi = 0; pxi < mw; pxi++) {
       const X = pxi * SCALE, Y = py * SCALE;
-      const d = Math.hypot(X - cx, Y - cy) / r;
+      const dx = X - cx, dy = Y - cy;
+      const rad = Math.hypot(dx, dy) / r;
+      const ang = Math.atan2(dy, dx);
 
-      // вклад далёких галактик
-      let gal = 0;
-      for (const g of galaxies) {
-        const dx = X - g.x, dy = Y - g.y;
-        const ex = (dx * g.cos + dy * g.sin) / g.rx;
-        const ey = (-dx * g.sin + dy * g.cos) / g.ry;
-        const q = ex * ex + ey * ey;
-        if (q > 6) continue;
-        let v = Math.exp(-q * 1.15) * g.bright;
-        if (g.arms) {
-          // намёк на спиральные рукава
-          const ang = Math.atan2(ey, ex) + Math.sqrt(q) * 2.4;
-          v *= 0.62 + 0.38 * Math.abs(Math.cos(ang));
-        }
-        gal += v;
-      }
+      // логарифмическая спираль: рукава, втекающие в центр
+      const lr = Math.log(rad + 0.05);
+      const turb = fbm(X * S, Y * S, 5) * 0.9;
+      const arms = Math.sin(ARMS * ang + TIGHT * lr + turb * 1.7);
 
-      let L;
-      if (d < 1) {
-        // диск луны: моря и потемнение к лимбу
-        const seas = fbm(X * 0.006, Y * 0.006, 4) * 0.28;
-        L = Math.min(1, Math.max(0, 0.92 * (1 - Math.pow(d, 3) * 0.3) + seas * 0.16));
-      } else {
-        // доменное искажение — мраморные завихрения ночи
-        const x = X * S, y = Y * S;
-        const q1 = fbm(x, y), q2 = fbm(x + 5.2, y + 1.3);
-        const r1 = fbm(x + 4 * q1 + 1.7, y + 4 * q2 + 9.2);
-        const r2 = fbm(x + 4 * q1 + 8.3, y + 4 * q2 + 2.8);
-        const f = (fbm(x + 4 * r1, y + 4 * r2) + 1) / 2;
+      // ядро: свет сгущается там, куда всё стекается
+      const core = Math.exp(-rad * rad * 5.5);
 
-        // филигрань Жюлиа вокруг луны
-        const jz = 2.6 / (r * 3.2);
-        const jv = julia((X - cx) * jz, (Y - cy) * jz);
-        const thread = Math.pow(1 - Math.abs(((jv * 7) % 1) * 2 - 1), 8) * 0.5;
+      // к периферии картина растворяется в холсте
+      const fade = smooth(0.6, reach, rad);
 
-        const night = 0.12 + 0.86 * smooth(1.0, reach, d);
-        L = night + (f - 0.5) * 0.42 * (1 - smooth(1.0, reach, d))
-            + thread * (1 - smooth(1.0, reach * 0.8, d))
-            + Math.min(0.55, gal);
-        L = Math.min(1, Math.max(0, L));
-      }
+      const night = 0.13 + arms * 0.17 + turb * 0.06 + core * 0.95;
+      const L = night * (1 - fade) + 0.98 * fade;
 
-      const v = (L * 255) | 0;
+      const v = Math.min(255, Math.max(0, L * 255)) | 0;
       const i = (py * mw + pxi) * 4;
       px[i] = px[i + 1] = px[i + 2] = v; px[i + 3] = 255;
     }
@@ -476,6 +440,208 @@ function paintStarfield(ctx, w, h, seed = 7) {
   }
 }
 
+/* ---------- Звёздная россыпь поверх живописи ----------
+   Точки звёзд мельче любой кисти, поэтому кладутся последними:
+   иначе широкий мазок стёр бы их вместе с лучами и хвостами комет.   */
+
+function paintStarfield(ctx, w, h, seed = 7) {
+  const rnd = seededRandom(seed);
+  const dim = Math.min(w, h);
+
+  const star = (x, y, rad, warm, spikes) => {
+    const hue = warm ? 42 : 214;
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+
+    if (!spikes) return;
+    // дифракционные лучи — подпись телескопа
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
+    ctx.lineWidth = Math.max(0.6, rad * 0.35);
+    const L = rad * 13;
+    ctx.beginPath();
+    ctx.moveTo(x - L, y); ctx.lineTo(x + L, y);
+    ctx.moveTo(x, y - L); ctx.lineTo(x, y + L);
+    ctx.stroke();
+  };
+
+  // мелкая пыль далёких светил
+  const dust = Math.round(w * h / 5200);
+  for (let i = 0; i < dust; i++) {
+    const x = rnd() * w, y = rnd() * h;
+    const a = 0.12 + rnd() * 0.5;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
+    ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // заметные звёзды, часть — с лучами
+  const bright = Math.round(dim / 42);
+  for (let i = 0; i < bright; i++) {
+    star(rnd() * w, rnd() * h, 0.9 + rnd() * 1.7, rnd() > 0.82, rnd() > 0.55);
+  }
+
+  // кометы: ядро и тающий хвост
+  const comets = 2 + ((rnd() * 2) | 0);
+  for (let i = 0; i < comets; i++) {
+    const x = rnd() * w, y = rnd() * h * 0.75;
+    const ang = -0.9 + rnd() * 0.7;
+    const len = dim * (0.1 + rnd() * 0.16);
+    const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
+
+    const tail = ctx.createLinearGradient(x, y, ex, ey);
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
+    ctx.strokeStyle = tail;
+    ctx.lineWidth = 1.6 + rnd() * 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+
+    star(x, y, 1.5 + rnd(), false, true);
+  }
+}
+
+/* ---------- Объёмная стеклянная сфера ----------
+   Луна перестаёт быть плоским диском: узор за ней преломляется внутрь шара,
+   к кромке нарастает френелевский блеск, сверху ложится блик.            */
+
+/* ---------- Звёздная россыпь поверх живописи ----------
+   Точки звёзд мельче любой кисти, поэтому кладутся последними:
+   иначе широкий мазок стёр бы их вместе с лучами и хвостами комет.   */
+
+function paintStarfield(ctx, w, h, seed = 7) {
+  const rnd = seededRandom(seed);
+  const dim = Math.min(w, h);
+
+  const star = (x, y, rad, warm, spikes) => {
+    const hue = warm ? 42 : 214;
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+
+    if (!spikes) return;
+    // дифракционные лучи — подпись телескопа
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
+    ctx.lineWidth = Math.max(0.6, rad * 0.35);
+    const L = rad * 13;
+    ctx.beginPath();
+    ctx.moveTo(x - L, y); ctx.lineTo(x + L, y);
+    ctx.moveTo(x, y - L); ctx.lineTo(x, y + L);
+    ctx.stroke();
+  };
+
+  // мелкая пыль далёких светил
+  const dust = Math.round(w * h / 5200);
+  for (let i = 0; i < dust; i++) {
+    const x = rnd() * w, y = rnd() * h;
+    const a = 0.12 + rnd() * 0.5;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
+    ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // заметные звёзды, часть — с лучами
+  const bright = Math.round(dim / 42);
+  for (let i = 0; i < bright; i++) {
+    star(rnd() * w, rnd() * h, 0.9 + rnd() * 1.7, rnd() > 0.82, rnd() > 0.55);
+  }
+
+  // кометы: ядро и тающий хвост
+  const comets = 2 + ((rnd() * 2) | 0);
+  for (let i = 0; i < comets; i++) {
+    const x = rnd() * w, y = rnd() * h * 0.75;
+    const ang = -0.9 + rnd() * 0.7;
+    const len = dim * (0.1 + rnd() * 0.16);
+    const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
+
+    const tail = ctx.createLinearGradient(x, y, ex, ey);
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
+    ctx.strokeStyle = tail;
+    ctx.lineWidth = 1.6 + rnd() * 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+
+    star(x, y, 1.5 + rnd(), false, true);
+  }
+}
+
+/* ---------- Звёздная россыпь поверх живописи ----------
+   Точки звёзд мельче любой кисти, поэтому кладутся последними:
+   иначе широкий мазок стёр бы их вместе с лучами и хвостами комет.   */
+
+function paintStarfield(ctx, w, h, seed = 7) {
+  const rnd = seededRandom(seed);
+  const dim = Math.min(w, h);
+
+  const star = (x, y, rad, warm, spikes) => {
+    const hue = warm ? 42 : 214;
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+
+    if (!spikes) return;
+    // дифракционные лучи — подпись телескопа
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
+    ctx.lineWidth = Math.max(0.6, rad * 0.35);
+    const L = rad * 13;
+    ctx.beginPath();
+    ctx.moveTo(x - L, y); ctx.lineTo(x + L, y);
+    ctx.moveTo(x, y - L); ctx.lineTo(x, y + L);
+    ctx.stroke();
+  };
+
+  // мелкая пыль далёких светил
+  const dust = Math.round(w * h / 5200);
+  for (let i = 0; i < dust; i++) {
+    const x = rnd() * w, y = rnd() * h;
+    const a = 0.12 + rnd() * 0.5;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
+    ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // заметные звёзды, часть — с лучами
+  const bright = Math.round(dim / 42);
+  for (let i = 0; i < bright; i++) {
+    star(rnd() * w, rnd() * h, 0.9 + rnd() * 1.7, rnd() > 0.82, rnd() > 0.55);
+  }
+
+  // кометы: ядро и тающий хвост
+  const comets = 2 + ((rnd() * 2) | 0);
+  for (let i = 0; i < comets; i++) {
+    const x = rnd() * w, y = rnd() * h * 0.75;
+    const ang = -0.9 + rnd() * 0.7;
+    const len = dim * (0.1 + rnd() * 0.16);
+    const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
+
+    const tail = ctx.createLinearGradient(x, y, ex, ey);
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
+    ctx.strokeStyle = tail;
+    ctx.lineWidth = 1.6 + rnd() * 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+
+    star(x, y, 1.5 + rnd(), false, true);
+  }
+}
+
 /* ---------- Объёмная стеклянная сфера ----------
    Луна перестаёт быть плоским диском: узор за ней преломляется внутрь шара,
    к кромке нарастает френелевский блеск, сверху ложится блик.            */
@@ -497,8 +663,8 @@ function applyGlassSphere(ctx, w, h, dpr, { cx, cy, r }) {
   const S = src.data, D = out.data;
 
   // показатели преломления по каналам — отсюда цветная кайма у кромки
-  const IOR = [1.505, 1.520, 1.538];
-  const SPREAD = 2.15;          // сколько фона собирает шар
+  const IOR = [1.502, 1.509, 1.518];
+  const SPREAD = 1.65;          // сколько фона собирает шар
   const F0 = 0.04;              // отражение стекла по нормали
   const ABSORB = [0.16, 0.10, 0.05];   // стекло съедает красное сильнее синего
 
@@ -730,6 +896,7 @@ function createPainting(canvas, options = {}) {
     underpaint = null,      // тонировка холста перед мазками
     sizeAt = () => 1,       // калибр кисти по горизонтали: слева мельче, справа шире
     overlay = null,         // что кладётся последним, поверх готовой живописи
+    onPaint = null,         // сигнал наверх: холст изменился
   } = options;
 
   let w, h, dpr, field = null, glassField = null, budget = 0, painted = 0, raf = null;
@@ -842,11 +1009,11 @@ function createPainting(canvas, options = {}) {
      Отсюда умеренная длина и три калибра кисти.                        */
   const PASSES = [
     // длинные ленты ведут основной рисунок узора
-    { spacing: 9.5, len: [90, 200], wid: [3.6, 7.5], minDetail: -1,   bristles: 3, relief: false },
+    { spacing: 12,  len: [110, 240], wid: [5, 11], minDetail: -1,   bristles: 3, relief: false },
     // средние подхватывают ход линий
-    { spacing: 6.2, len: [50, 115], wid: [2.2, 4.6], minDetail: 0.06, bristles: 2, relief: false },
+    { spacing: 8,   len: [60, 130],  wid: [3, 6.2], minDetail: 0.06, bristles: 2, relief: false },
     // короткие расставляют акценты там, где узор сгущается
-    { spacing: 4.2, len: [22, 58],  wid: [1.2, 2.8], minDetail: 0.2,  bristles: 2, relief: false },
+    { spacing: 6.5, len: [26, 64],   wid: [2, 4], minDetail: 0.34,  bristles: 2, relief: false },
   ];
 
   function buildJobs() {
@@ -927,6 +1094,7 @@ function createPainting(canvas, options = {}) {
   // живопись дописана — опускаем стеклянную фигуру поверх неё
   function finish() {
     if (overlay) overlay(ctx, w, h);
+    if (onPaint) onPaint();
     if (!glassField) return;
     applyLiquidGlass(ctx, w, h, dpr, thicknessAt, {
       ...glass,
@@ -1009,6 +1177,7 @@ function createPainting(canvas, options = {}) {
         color: field ? colorFor(lum) : jitter(weightedPick(AIR)),
         relief: lum < 0.55,
       });
+      if (onPaint) onPaint();
     });
   }
 
@@ -1035,14 +1204,14 @@ function loadImage(src) {
 (async function initPaintings() {
   const hero = document.getElementById('paint-hero');
   if (hero) {
-    // геометрия луны — общая для подмалёвка и для поля мазков
-    const moonGeom = (w, h) => {
+    // ядро смещено влево: справа остаётся спокойное поле под заголовок
+    const coreGeom = (w, h) => {
       const narrow = w / h < 1.05;
       return {
-        cx: w * (narrow ? 0.52 : 0.20),
-        cy: h * (narrow ? 0.70 : 0.36),
-        r: Math.min(w, h) * (narrow ? 0.23 : 0.17),
-        reach: 4.2,
+        cx: w * (narrow ? 0.5 : 0.3),
+        cy: h * (narrow ? 0.62 : 0.52),
+        r: Math.min(w, h) * (narrow ? 0.3 : 0.34),
+        reach: 3.4,
       };
     };
 
@@ -1050,30 +1219,30 @@ function loadImage(src) {
       alpha: 0.9,
       interactive: true,
       skipLight: true,
-      // у луны кисть мельче и точнее, к правому краю — широкая и вольная
-      sizeAt: (u) => 0.7 + Math.pow(Math.max(0, u - 0.12) / 0.88, 1.5) * 2.4,
+      sizeAt: (u) => 0.75 + Math.pow(Math.max(0, u - 0.1) / 0.9, 1.4) * 2.2,
 
-      /* Тонировка холста: ночь и диск луны кладутся сплошным тоном,
-         иначе отдельные мазки висят в пустоте и не образуют неба. */
+      // тонировка: глубина ночи и свет ядра
       underpaint: (ctx, w, h) => {
-        const { cx, cy, r, reach } = moonGeom(w, h);
+        const { cx, cy, r, reach } = coreGeom(w, h);
 
-        const sky = ctx.createRadialGradient(cx, cy, r * 0.9, cx, cy, r * reach);
-        sky.addColorStop(0.00, 'rgba(15, 22, 66, 0.96)');
-        sky.addColorStop(0.22, 'rgba(20, 32, 94, 0.92)');
-        sky.addColorStop(0.55, 'rgba(31, 53, 168, 0.42)');
+        const sky = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * reach);
+        sky.addColorStop(0.00, 'rgba(18, 28, 84, 0.95)');
+        sky.addColorStop(0.30, 'rgba(20, 32, 94, 0.9)');
+        sky.addColorStop(0.62, 'rgba(31, 53, 168, 0.4)');
         sky.addColorStop(1.00, 'rgba(31, 53, 168, 0)');
         ctx.fillStyle = sky;
         ctx.fillRect(0, 0, w, h);
 
+        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.5);
+        core.addColorStop(0.00, 'rgba(248, 246, 236, 0.95)');
+        core.addColorStop(0.28, 'rgba(200, 216, 246, 0.55)');
+        core.addColorStop(1.00, 'rgba(150, 180, 235, 0)');
+        ctx.fillStyle = core;
+        ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.fill();
       },
 
-      makeField: (w, h) => buildFractalField(w, h, moonGeom(w, h)),
-      overlay: (ctx, w, h) => {
-        const { cx, cy, r } = moonGeom(w, h);
-        applyGlassSphere(ctx, w, h, Math.min(window.devicePixelRatio || 1, 1.5), { cx, cy, r });
-        paintStarfield(ctx, w, h, 20260726);
-      },
+      makeField: (w, h) => buildGalaxyField(w, h, coreGeom(w, h)),
+      overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 20260726),
     }).start();
   }
 
