@@ -1,11 +1,11 @@
 /* ==========================================================
-   Слепок мышления — масляная живопись в браузере
-   Генеративные мазки: щетина, импасто, подмешивание цвета
+   Слепок мышления — живопись, которая складывается в смысл
+   Мазки подчиняются силуэту: из хаоса проступает профиль
    ========================================================== */
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ---------- Перлин-шум для направления мазков ---------- */
+/* ---------- Перлин-шум ---------- */
 
 function makePerlin() {
   const p = new Uint8Array(512);
@@ -41,68 +41,274 @@ function makePerlin() {
   };
 }
 
-/* ---------- Палитра: ультрамарин и его семья ---------- */
+/* ---------- Палитра ---------- */
 
-const PALETTE = [
-  { h: 228, s: 74, l: 30, w: 26 },  // ультрамарин, основа
-  { h: 232, s: 68, l: 22, w: 20 },  // глубокая тень
-  { h: 220, s: 70, l: 42, w: 18 },  // кобальт
-  { h: 208, s: 66, l: 55, w: 12 },  // церулеум
-  { h: 248, s: 46, l: 36, w: 10 },  // фиолетовый подмес
-  { h: 200, s: 40, l: 72, w: 8 },   // разбел, свет
-  { h: 30,  s: 58, l: 50, w: 4 },   // сиена — тёплый акцент
-  { h: 44,  s: 62, l: 62, w: 2 },   // охра, редкий блик
+const DEEP = [
+  { h: 228, s: 76, l: 26, w: 30 },  // ультрамарин
+  { h: 233, s: 70, l: 18, w: 24 },  // глубокая тень
+  { h: 220, s: 72, l: 38, w: 22 },  // кобальт
+  { h: 248, s: 48, l: 32, w: 12 },  // фиолетовый подмес
+  { h: 208, s: 68, l: 50, w: 8 },   // церулеум
+  { h: 28,  s: 60, l: 46, w: 4 },   // сиена — рефлекс
 ];
 
-const PALETTE_TOTAL = PALETTE.reduce((s, c) => s + c.w, 0);
+const AIR = [
+  { h: 210, s: 44, l: 74, w: 34 },  // разбел
+  { h: 220, s: 38, l: 66, w: 26 },  // холодный воздух
+  { h: 205, s: 52, l: 58, w: 18 },  // церулеум разбавленный
+  { h: 44,  s: 54, l: 68, w: 12 },  // охра, тёплый просвет
+  { h: 232, s: 40, l: 48, w: 10 },  // тень в воздухе
+];
 
-function pickColor() {
-  let r = Math.random() * PALETTE_TOTAL;
-  for (const c of PALETTE) {
-    r -= c.w;
-    if (r <= 0) return c;
-  }
-  return PALETTE[0];
+function weightedPick(list) {
+  const total = list.reduce((s, c) => s + c.w, 0);
+  let r = Math.random() * total;
+  for (const c of list) { r -= c.w; if (r <= 0) return c; }
+  return list[0];
 }
 
-function jitter(c) {
+function jitter(c, amount = 1) {
   return {
-    h: c.h + (Math.random() - 0.5) * 14,
-    s: Math.min(95, Math.max(18, c.s + (Math.random() - 0.5) * 18)),
-    l: Math.min(92, Math.max(10, c.l + (Math.random() - 0.5) * 16)),
+    h: c.h + (Math.random() - 0.5) * 14 * amount,
+    s: Math.min(95, Math.max(16, c.s + (Math.random() - 0.5) * 18 * amount)),
+    l: Math.min(94, Math.max(8, c.l + (Math.random() - 0.5) * 16 * amount)),
   };
 }
 
 const hsla = (c, a) => `hsla(${c.h.toFixed(1)}, ${c.s.toFixed(1)}%, ${c.l.toFixed(1)}%, ${a})`;
 
-/* ---------- Один мазок кисти ---------- */
+/* ---------- Натура: фотография как поле для кисти ----------
+   Яркость снимка решает, где краска ложится густо и какого она тона,
+   а градиент яркости задаёт направление мазка — так пишут по форме.  */
 
-function paintStroke(ctx, noise, x0, y0, cfg) {
+function buildImageField(img, w, h, box) {
+  const SCALE = 3;
+  const mw = Math.max(2, Math.ceil(w / SCALE));
+  const mh = Math.max(2, Math.ceil(h / SCALE));
+  const c = document.createElement('canvas');
+  c.width = mw; c.height = mh;
+  const x = c.getContext('2d');
+
+  // холст вне натуры — чистый: там останется воздух
+  x.fillStyle = '#fff';
+  x.fillRect(0, 0, mw, mh);
+
+  // вписываем снимок в отведённую область, сохраняя пропорции
+  const bx = box.x * mw, by = box.y * mh;
+  const bw = box.w * mw, bh = box.h * mh;
+  const k = Math.min(bw / img.width, bh / img.height);
+  const dw = img.width * k, dh = img.height * k;
+  x.drawImage(img, bx + (bw - dw) / 2, by + (bh - dh) / 2, dw, dh);
+
+  // ширина натуры на холсте — по ней масштабируется кисть
+  const drawnWidth = dw * SCALE;
+
+  const data = x.getImageData(0, 0, mw, mh).data;
+
+  const at = (px, py) => {
+    const cx = px < 0 ? 0 : px > mw - 1 ? mw - 1 : px;
+    const cy = py < 0 ? 0 : py > mh - 1 ? mh - 1 : py;
+    const i = (cy * mw + cx) * 4;
+    return (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+  };
+
+  /* Билинейная выборка: маска втрое мельче холста, и выборка «по клетке»
+     давала бы ступенчатые градиенты — на кромке стекла это видно как пиксели. */
+  const lum = (u, v) => {
+    const fx = u * mw - 0.5, fy = v * mh - 0.5;
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    const tx = fx - x0, ty = fy - y0;
+    const a = at(x0, y0),     b = at(x0 + 1, y0);
+    const c = at(x0, y0 + 1), d = at(x0 + 1, y0 + 1);
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  };
+
+  const gradAtScale = (u, v, px) => {
+    const d = px / mw;
+    const gx = lum(u + d, v) - lum(u - d, v);
+    const gy = lum(u, v + d) - lum(u, v - d);
+    return [gx, gy, Math.hypot(gx, gy)];
+  };
+
+  /* Многомасштабный градиент: на гладких участках мелкая разность почти нулевая,
+     и направление мазка выродилось бы в случайное. Если рядом ничего не найдено,
+     смотрим шире — там читается общее направление формы.                      */
+  const gradientAt = (u, v) => {
+    for (const px of [1.4, 4, 9, 18]) {
+      const g = gradAtScale(u, v, px);
+      if (g[2] > 0.02) return g;
+    }
+    return gradAtScale(u, v, 18);
+  };
+
+  // мелкая деталь — только по ближней разности: по ней выбирается размер кисти
+  const detailAt = (u, v) => gradAtScale(u, v, 1.4)[2];
+
+  return { lum, gradientAt, detailAt, drawnWidth };
+}
+
+/* ---------- Луна: процедурное поле светлоты ----------
+   Диск с морями и потемнением к краю, вокруг — ночной ореол,
+   который к периферии растворяется в холсте.                 */
+
+function makeMoonField(w, h, { cx, cy, r, reach = 3.0 }) {
+  const noise = makePerlin();
+  const smooth = (a, b, t) => {
+    const x = Math.min(1, Math.max(0, (t - a) / (b - a)));
+    return x * x * (3 - 2 * x);
+  };
+
+  const lum = (u, v) => {
+    const x = u * w, y = v * h;
+    const d = Math.hypot(x - cx, y - cy) / r;
+
+    if (d < 1) {
+      // моря на диске + потемнение к лимбу
+      const seas = noise(x * 0.0055, y * 0.0055) * 0.5 + noise(x * 0.019, y * 0.019) * 0.22;
+      const limb = 1 - Math.pow(d, 3) * 0.3;
+      return Math.min(1, Math.max(0, 0.9 * limb + seas * 0.12));
+    }
+
+    // ночное небо: густая синева у диска, к периферии растворяется в холсте
+    // только низкая частота: мелкое зерно заставило бы детальные проходы
+    // срабатывать по всему небу и раздуло бы объём работы
+    const grain = noise(x * 0.0045, y * 0.0045) * 0.16;
+    const sky = 0.14 + 0.84 * smooth(1.0, reach, d);
+    return Math.min(1, Math.max(0, sky + grain * (1 - smooth(1.0, reach, d))));
+  };
+
+  const gradAtScale = (u, v, px) => {
+    const d = px / w;
+    const gx = lum(u + d, v) - lum(u - d, v);
+    const gy = lum(u, v + d) - lum(u, v - d);
+    return [gx, gy, Math.hypot(gx, gy)];
+  };
+
+  const gradientAt = (u, v) => {
+    for (const px of [2, 6, 14]) {
+      const g = gradAtScale(u, v, px);
+      if (g[2] > 0.02) return g;
+    }
+    return gradAtScale(u, v, 14);
+  };
+
+  return {
+    lum,
+    gradientAt,
+    detailAt: (u, v) => gradAtScale(u, v, 2)[2],
+    drawnWidth: r * 2,
+  };
+}
+
+/* ---------- Жидкое стекло ----------
+   Фигура не пишется краской, а становится линзой: изображение под ней
+   смещается по градиенту толщины, по кромкам вспыхивают блики.        */
+
+function applyLiquidGlass(ctx, w, h, dpr, thickness, opts = {}) {
   const {
-    length = 180,
-    width = 26,
-    scale = 0.0022,
-    bristles = 14,
-    alpha = 0.5,
-    color = pickColor(),
-    curl = 1,
+    refraction = 30, tint = [188, 208, 240], rim = 0.85,
+    tone = null,        // светлота натуры: даёт стеклу внутренний объём
+    ghost = 0.34,       // насколько проступает форма внутри стекла
+  } = opts;
+
+  const W = Math.max(1, Math.floor(w * dpr));
+  const H = Math.max(1, Math.floor(h * dpr));
+  const src = ctx.getImageData(0, 0, W, H);
+  const out = ctx.createImageData(W, H);
+  out.data.set(src.data);
+
+  const S = src.data, D = out.data;
+  const k = refraction * dpr;
+
+  for (let y = 0; y < H; y++) {
+    const v = y / H;
+    for (let x = 0; x < W; x++) {
+      const u = x / W;
+      const t = thickness(u, v);
+      if (t < 0.035) continue;                    // вне стекла ничего не трогаем
+
+      // градиент толщины — нормаль поверхности линзы
+      const d = 1.5 / W;
+      const gx = thickness(u + d, v) - thickness(u - d, v);
+      const gy = thickness(u, v + d) - thickness(u, v - d);
+      const mag = Math.hypot(gx, gy);
+
+      // преломление: чем толще и круче, тем сильнее сдвиг
+      let sx = Math.round(x - gx * k * (0.4 + t));
+      let sy = Math.round(y - gy * k * (0.4 + t));
+      sx = sx < 0 ? 0 : sx >= W ? W - 1 : sx;
+      sy = sy < 0 ? 0 : sy >= H ? H - 1 : sy;
+
+      const si = (sy * W + sx) * 4;
+      const di = (y * W + x) * 4;
+
+      // стекло почти прозрачно: лишь холодный отлив, форму выдаёт преломление
+      const g = 0.04 + t * 0.13;
+      let r0 = S[si]     * (1 - g) + tint[0] * g;
+      let g0 = S[si + 1] * (1 - g) + tint[1] * g;
+      let b0 = S[si + 2] * (1 - g) + tint[2] * g;
+
+      // толща стекла слегка гасит свет — появляется объём
+      const absorb = 1 - t * 0.16;
+      r0 *= absorb; g0 *= absorb; b0 *= absorb;
+
+      /* Внутри стекла проступает тональная форма натуры — прямо, не в негативе:
+         тени остаются тенями, света — светами.                              */
+      if (tone) {
+        const L = tone(u, v);
+        /* Тональный ряд сдвинут вверх: стекло подсвечено луной, поэтому даже
+           тени портрета светлее ночного неба — иначе фигура в нём тонет.   */
+        const a = ghost * (0.34 + 0.66 * t);
+        r0 = r0 * (1 - a) + (96 + L * 156) * a;
+        g0 = g0 * (1 - a) + (112 + L * 146) * a;
+        b0 = b0 * (1 - a) + (154 + L * 101) * a;
+      }
+
+      // свет скользит по стеклу сверху-слева
+      const sheen = Math.max(0, -gx * 0.6 - gy * 0.8) * 1.6;
+      // блик по кромке: только там, где поверхность круто заворачивает
+      const spec = Math.min(0.55, mag * 26) * rim + Math.min(0.14, sheen);
+      if (spec > 0.01) {
+        r0 += (255 - r0) * spec;
+        g0 += (255 - g0) * spec;
+        b0 += (255 - b0) * spec;
+      }
+
+      D[di]     = r0;
+      D[di + 1] = g0;
+      D[di + 2] = b0;
+      D[di + 3] = Math.max(S[si + 3], Math.round(t * 255));
+    }
+  }
+
+  ctx.putImageData(out, 0, 0);
+}
+
+/* ---------- Мазок ---------- */
+
+function paintStroke(ctx, angleAt, x0, y0, cfg) {
+  const {
+    length = 180, width = 26, bristles = 14,
+    alpha = 0.5, color, relief = true,
   } = cfg;
 
-  // 1. Центральная линия мазка по полю течения
-  const step = 7;
+  const step = Math.max(3, Math.min(7, length / 4));
   const pts = [];
   let x = x0, y = y0;
-  for (let i = 0; i < length / step; i++) {
-    const a = noise(x * scale, y * scale) * Math.PI * 2 * curl;
+  // мазок начинается чуть раньше точки посева — кисть проходит сквозь неё
+  const a0 = angleAt(x0, y0);
+  x -= Math.cos(a0) * length * 0.45;
+  y -= Math.sin(a0) * length * 0.45;
+  for (let i = 0; i < Math.max(2, length / step); i++) {
+    const a = angleAt(x, y);
     x += Math.cos(a) * step;
     y += Math.sin(a) * step;
     pts.push([x, y]);
   }
   if (pts.length < 2) return;
 
-  // 2. Корпус мазка — плотная краска под щетиной
-  const body = jitter(color);
-  ctx.strokeStyle = hsla(body, alpha * 0.62);
+  // корпус мазка — плотная краска
+  ctx.strokeStyle = hsla(jitter(color), alpha * 0.62);
   ctx.lineWidth = width * 0.82;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -110,42 +316,34 @@ function paintStroke(ctx, noise, x0, y0, cfg) {
   pts.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)));
   ctx.stroke();
 
-  // 3. Волоски щетины — каждый со своим оттенком и нажимом
+  // щетина
   for (let b = 0; b < bristles; b++) {
     const t = bristles === 1 ? 0.5 : b / (bristles - 1);
     const offset = (t - 0.5) * width;
     const c = jitter(color);
-    // края мазка суше и прозрачнее, середина плотнее
     const edge = 1 - Math.abs(t - 0.5) * 2;
     const a = alpha * (0.25 + edge * 0.85) * (0.55 + Math.random() * 0.65);
 
     ctx.strokeStyle = hsla(c, Math.min(a, 0.95));
     ctx.lineWidth = (width / bristles) * (0.8 + Math.random() * 1.5);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
     ctx.beginPath();
     for (let i = 0; i < pts.length; i++) {
       const [px, py] = pts[i];
       const [nx, ny] = pts[Math.min(i + 1, pts.length - 1)];
       const dx = nx - px, dy = ny - py;
       const len = Math.hypot(dx, dy) || 1;
-      // нормаль к направлению мазка
-      const ox = (-dy / len) * offset;
-      const oy = (dx / len) * offset;
-      // щетина слегка расходится к концу — кисть «выдыхается»
       const fray = 1 + (i / pts.length) * 0.35;
-      const jx = (Math.random() - 0.5) * 1.6;
-      const jy = (Math.random() - 0.5) * 1.6;
-      const X = px + ox * fray + jx;
-      const Y = py + oy * fray + jy;
+      const X = px + (-dy / len) * offset * fray + (Math.random() - 0.5) * 1.6;
+      const Y = py + (dx / len) * offset * fray + (Math.random() - 0.5) * 1.6;
       if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
     }
     ctx.stroke();
   }
 
-  // 4. Импасто: блик по одному краю, тень по другому — краска встаёт рельефом
-  const relief = (off, stroke, lw) => {
+  if (!relief) return;
+
+  // импасто
+  const ridge = (off, stroke, lw) => {
     ctx.strokeStyle = stroke;
     ctx.lineWidth = lw;
     ctx.beginPath();
@@ -161,14 +359,13 @@ function paintStroke(ctx, noise, x0, y0, cfg) {
     ctx.stroke();
   };
 
-  relief(-width * 0.34, `hsla(${color.h + 6}, 60%, 88%, ${0.05 + Math.random() * 0.09})`, 1.6);
-  relief(width * 0.38, `hsla(${color.h}, 60%, 8%, ${0.05 + Math.random() * 0.08})`, 2);
+  ridge(-width * 0.34, `hsla(${color.h + 6}, 60%, 88%, ${0.05 + Math.random() * 0.09})`, 1.6);
+  ridge(width * 0.38, `hsla(${color.h}, 60%, 8%, ${0.05 + Math.random() * 0.08})`, 2);
 }
 
-/* ---------- Акварельная заливка: мягкое пятно с рваным краем ---------- */
+/* ---------- Акварельная заливка ---------- */
 
 function paintWash(ctx, x, y, radius, color, alpha) {
-  // неровный контур пятна — вода расходится по волокну бумаги
   const lobes = 7 + ((Math.random() * 5) | 0);
   const pts = [];
   for (let i = 0; i < lobes; i++) {
@@ -188,89 +385,255 @@ function paintWash(ctx, x, y, radius, color, alpha) {
   ctx.beginPath();
   ctx.moveTo((pts[0][0] + pts[lobes - 1][0]) / 2, (pts[0][1] + pts[lobes - 1][1]) / 2);
   for (let i = 0; i < lobes; i++) {
-    const cur = pts[i];
-    const next = pts[(i + 1) % lobes];
+    const cur = pts[i], next = pts[(i + 1) % lobes];
     ctx.quadraticCurveTo(cur[0], cur[1], (cur[0] + next[0]) / 2, (cur[1] + next[1]) / 2);
   }
   ctx.closePath();
   ctx.fill();
-
-  // кромка подсыхающей краски — акварельный ободок
   ctx.strokeStyle = hsla({ ...color, l: color.l * 0.78 }, alpha * 0.5);
   ctx.lineWidth = 1.2 + Math.random() * 1.6;
   ctx.stroke();
   ctx.restore();
 }
 
-/* ---------- Полотно: постепенно проявляющаяся живопись ---------- */
+/* ---------- Полотно ---------- */
 
 function createPainting(canvas, options = {}) {
   const ctx = canvas.getContext('2d');
   const noise = makePerlin();
   const {
-    density = 0.00028,      // мазков на пиксель площади
+    density = 0.00034,
     scale = 0.0022,
-    minW = 22, maxW = 78,
-    minL = 150, maxL = 420,
-    alpha = 0.42,
-    perFrame = 5,
+    alpha = 0.44,
+    perFrame = 6,
     washDensity = 0.000035,
     interactive = false,
-    bias = null,            // функция веса: где краска ложится плотнее
+    sourceImage = null,     // натура: по ней собирается изображение
+    sourceBox = null,       // куда её вписать (доли холста)
+    makeField = null,       // процедурное поле вместо снимка
+    ambientBias = null,     // плотность, когда поля нет
+    glass = null,           // { image, box, ...opts } — линза поверх живописи
+    skipLight = false,      // писать ли светлые участки (для луны — да)
+    underpaint = null,      // тонировка холста перед мазками
+    sizeAt = () => 1,       // калибр кисти по горизонтали: слева мельче, справа шире
   } = options;
 
-  let w, h, dpr, budget = 0, painted = 0, raf = null;
+  let w, h, dpr, field = null, glassField = null, budget = 0, painted = 0, raf = null;
 
   function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // 1.5 достаточно для живописи и вдвое дешевле по заливке, чем 2
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const rect = canvas.getBoundingClientRect();
     w = rect.width; h = rect.height;
     if (!w || !h) return false;
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (makeField) {
+      field = makeField(w, h);
+    } else {
+      const box = typeof sourceBox === 'function' ? sourceBox(w, h) : sourceBox;
+      field = (sourceImage && box) ? buildImageField(sourceImage, w, h, box) : null;
+    }
+
+    glassField = null;
+    if (glass && glass.image) {
+      const gb = typeof glass.box === 'function' ? glass.box(w, h) : glass.box;
+      glassField = buildImageField(glass.image, w, h, gb);
+    }
     return true;
   }
 
+  // толщина стекла: тёмные места натуры — самые «густые»
+  function thicknessAt(u, v) {
+    if (!glassField) return 0;
+    return Math.max(0, Math.min(1, (1 - glassField.lum(u, v) - 0.04) / 0.96));
+  }
+
+  /* Направление мазка: вдоль линий равной светлоты — так кисть идёт по форме.
+     Где натура ровная, ведёт поле течения.                                   */
+  function angleAt(x, y) {
+    const px = noise(x * scale, y * scale) * Math.PI * 2;
+    if (!field) return px;
+
+    const [gx, gy, mag] = field.gradientAt(x / w, y / h);
+    if (mag < 0.012) return px;
+
+    const tangent = Math.atan2(gy, gx) + Math.PI / 2;
+    const k = Math.min(1, mag * 9);
+    // смешиваем как векторы, чтобы не было скачка через 2π
+    const vx = Math.cos(px) * (1 - k) + Math.cos(tangent) * k;
+    const vy = Math.sin(px) * (1 - k) + Math.sin(tangent) * k;
+    return Math.atan2(vy, vx);
+  }
+
+  function densityAt(u, v) {
+    if (field) {
+      const ink = 1 - field.lum(u, v);
+      return 0.035 + Math.pow(ink, 1.15) * 0.965;
+    }
+    return ambientBias ? ambientBias(u, v) : 0.6;
+  }
+
   function seedPoint() {
-    // rejection sampling по функции плотности
-    for (let i = 0; i < 8; i++) {
-      const x = Math.random() * w;
-      const y = Math.random() * h;
-      if (!bias || Math.random() < bias(x / w, y / h)) return [x, y];
+    for (let i = 0; i < 10; i++) {
+      const x = Math.random() * w, y = Math.random() * h;
+      if (Math.random() < densityAt(x / w, y / h)) return [x, y];
     }
     return [Math.random() * w, Math.random() * h];
   }
 
-  function oneStroke() {
-    const [x, y] = seedPoint();
-    const big = Math.random() > 0.72;
-    paintStroke(ctx, noise, x, y, {
-      length: minL + Math.random() * (maxL - minL) * (big ? 1 : 0.6),
-      width: minW + Math.random() * (maxW - minW) * (big ? 1 : 0.55),
-      scale,
-      bristles: 10 + ((Math.random() * 10) | 0),
-      alpha,
-      curl: 0.85 + Math.random() * 0.5,
+  /* Цвет мазка выводится из светлоты натуры: тени — густой ультрамарин,
+     света — разбел. Изредка тёплый рефлекс, чтобы синее звучало.        */
+  function colorFor(lum) {
+    if (Math.random() < 0.05) {
+      return jitter({ h: 28 + Math.random() * 18, s: 50, l: 34 + lum * 40 }, 0.7);
+    }
+    return jitter({
+      h: 224 + (Math.random() - 0.5) * 26,
+      s: 38 + (1 - lum) * 40,
+      l: 6 + lum * 80,
+    }, 0.7);
+  }
+
+  /* Мазок по натуре идёт прямо, вдоль линии равной светлоты: направление
+     берём один раз в точке посева, дальше — лишь лёгкое дыхание кисти.  */
+  function directedAngle(x0, y0) {
+    const [gx, gy, mag] = field.gradientAt(x0 / w, y0 / h);
+    const base = mag > 0.008
+      ? Math.atan2(gy, gx) + Math.PI / 2
+      // запасной вариант — низкочастотное поле: соседние мазки согласованы,
+      // а не смотрят в разные стороны
+      : noise(x0 * scale * 0.3, y0 * scale * 0.3) * Math.PI * 2;
+    return (x, y) => base + noise(x * 0.004, y * 0.004) * 0.22;
+  }
+
+  // Проходы: от крупной кисти к мелкой — как пишут с натуры
+  /* Мазок должен быть заметно короче черты лица, иначе он её смазывает.
+     Отсюда умеренная длина и три калибра кисти.                        */
+  const PASSES = [
+    // подмалёвок: закрывает форму целиком
+    { spacing: 9.5, len: [26, 54], wid: [10, 17], minDetail: -1,   bristles: 7, relief: true },
+    // проработка по краям форм
+    { spacing: 6.0, len: [16, 34], wid: [5, 9],   minDetail: 0.09, bristles: 5, relief: false },
+    // детали: глаза, оправа, губы
+    { spacing: 3.8, len: [8, 18],  wid: [2, 4],   minDetail: 0.24, bristles: 4, relief: false },
+  ];
+
+  function buildJobs() {
+    const jobs = [];
+    // кисть пропорциональна натуре: на телефоне холст меньше — и мазок мельче,
+    // иначе портрет рассыпается на редкие пятна
+    const k = Math.max(0.34, Math.min(1.5, field.drawnWidth / 640));
+
+    for (const pass of PASSES) {
+      const layer = [];
+      const spacing = pass.spacing * k;
+
+      for (let y = 0; y < h; y += spacing) {
+        for (let x = 0; x < w; x += spacing) {
+          /* Кисть растёт вправо, поэтому мазков там нужно во столько же раз
+             меньше — иначе и каша, и лишняя работа: площадь растёт как квадрат. */
+          const s = sizeAt(x / w);
+          if (s > 1 && Math.random() > 1 / (s * s)) continue;
+
+          const jx = x + (Math.random() - 0.5) * spacing * s;
+          const jy = y + (Math.random() - 0.5) * spacing * s;
+          const u = jx / w, v = jy / h;
+          const lum = field.lum(u, v);
+          if (!skipLight && lum > 0.93) continue;         // фон остаётся холстом
+          if (skipLight && lum > 0.965) continue;         // совсем светлое — тоже холст
+          const detail = Math.min(1, field.detailAt(u, v) * 7);
+          if (detail < pass.minDetail) continue;
+          layer.push({ x: jx, y: jy, pass, lum, detail, k: k * s });
+        }
+      }
+      // внутри слоя порядок случайный — форма проявляется целиком,
+      // но слои идут строго друг за другом: сначала подмалёвок, потом детали
+      for (let i = layer.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        [layer[i], layer[j]] = [layer[j], layer[i]];
+      }
+      jobs.push(...layer);
+    }
+
+    /* Страховка: стекло накладывается только после последнего мазка, поэтому
+       живопись обязана завершиться. Лишние детальные мазки отбрасываем.     */
+    const CAP = 24000;
+    if (jobs.length > CAP) jobs.length = CAP;
+    return jobs;
+  }
+
+  function runJob(job) {
+    const { pass, lum, detail, k } = job;
+    const rng = (r) => r[0] + Math.random() * (r[1] - r[0]);
+    paintStroke(ctx, directedAngle(job.x, job.y), job.x, job.y, {
+      length: rng(pass.len) * k * (1 - detail * 0.3),
+      width: rng(pass.wid) * k,
+      bristles: pass.bristles,
+      alpha: alpha * (0.55 + (1 - lum) * 0.55),
+      color: colorFor(lum),
+      relief: pass.relief && lum < 0.55,
     });
   }
 
-  function tick() {
-    for (let i = 0; i < perFrame && painted < budget; i++, painted++) oneStroke();
-    if (painted < budget) raf = requestAnimationFrame(tick);
-    else raf = null;
+  // абстрактный мазок — для холстов без натуры
+  function ambientStroke() {
+    const [x, y] = seedPoint();
+    const big = Math.random() > 0.6;
+    paintStroke(ctx, angleAt, x, y, {
+      length: 150 + Math.random() * (big ? 320 : 140),
+      width: 24 + Math.random() * (big ? 62 : 30),
+      bristles: 10 + ((Math.random() * 10) | 0),
+      alpha,
+      color: jitter(weightedPick(Math.random() > 0.45 ? DEEP : AIR), 1.1),
+      relief: true,
+    });
   }
 
-  // Подмалёвок: широкие акварельные заливки под мазками
+  let jobs = null;
+  let startedAt = 0;
+  const PAINT_DEADLINE = 3500;
+
+  // живопись дописана — опускаем стеклянную фигуру поверх неё
+  function finish() {
+    if (!glassField) return;
+    applyLiquidGlass(ctx, w, h, dpr, thicknessAt, {
+      ...glass,
+      tone: (u, v) => glassField.lum(u, v),
+    });
+  }
+
+  // рисуем столько, сколько успеваем за кадр, — портрет проявляется плавно
+  function tick() {
+    const t0 = performance.now();
+    if (jobs) {
+      while (painted < jobs.length && performance.now() - t0 < 12) runJob(jobs[painted++]);
+      // стекло ложится только поверх готовой живописи, поэтому у неё есть срок:
+      // не уложились — останавливаемся на достигнутом и накрываем линзой
+      const overdue = performance.now() - startedAt > PAINT_DEADLINE;
+      if (painted < jobs.length && !overdue) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        raf = null;
+        finish();
+      }
+    } else {
+      for (let i = 0; i < perFrame && painted < budget; i++, painted++) ambientStroke();
+      raf = painted < budget ? requestAnimationFrame(tick) : null;
+    }
+  }
+
   function layWashes() {
     const count = Math.round(w * h * washDensity);
     for (let i = 0; i < count; i++) {
       const [x, y] = seedPoint();
+      const dark = field ? field.lum(x / w, y / h) < 0.5 : Math.random() > 0.5;
       paintWash(
         ctx, x, y,
-        Math.min(w, h) * (0.12 + Math.random() * 0.3),
-        jitter(pickColor()),
-        0.05 + Math.random() * 0.1
+        Math.min(w, h) * (0.1 + Math.random() * 0.28),
+        jitter(weightedPick(dark ? DEEP : AIR)),
+        0.05 + Math.random() * 0.09
       );
     }
   }
@@ -278,18 +641,25 @@ function createPainting(canvas, options = {}) {
   function start() {
     if (!resize()) return;
     ctx.clearRect(0, 0, w, h);
+    if (underpaint) underpaint(ctx, w, h);
     layWashes();
-    budget = Math.round(w * h * density);
+
+    jobs = field ? buildJobs() : null;
+    const d = typeof density === 'function' ? density() : density;
+    budget = Math.round(w * h * d);
     painted = 0;
+
+    startedAt = performance.now();
+    cancelAnimationFrame(raf);
     if (reduceMotion) {
-      while (painted < budget) { oneStroke(); painted++; }
+      if (jobs) { jobs.forEach(runJob); finish(); }
+      else while (painted < budget) { ambientStroke(); painted++; }
     } else {
-      cancelAnimationFrame(raf);
       raf = requestAnimationFrame(tick);
     }
   }
 
-  // Кисть под курсором — можно «дописывать» картину
+  // кисть под курсором — дописывает картину, не ломая форму
   if (interactive && !reduceMotion) {
     let last = 0;
     canvas.parentElement.addEventListener('pointermove', (e) => {
@@ -297,13 +667,17 @@ function createPainting(canvas, options = {}) {
       if (now - last < 55) return;
       last = now;
       const rect = canvas.getBoundingClientRect();
-      paintStroke(ctx, noise, e.clientX - rect.left, e.clientY - rect.top, {
-        length: 90 + Math.random() * 130,
-        width: 18 + Math.random() * 34,
-        scale,
-        bristles: 12,
-        alpha: 0.34,
-        curl: 1,
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      // по стеклу не пишем — иначе линза замажется краской
+      if (thicknessAt(x / w, y / h) > 0.07) return;
+      const lum = field ? field.lum(x / w, y / h) : 0.6;
+      paintStroke(ctx, field ? directedAngle(x, y) : angleAt, x, y, {
+        length: 70 + Math.random() * 120,
+        width: 12 + Math.random() * 26,
+        bristles: 11,
+        alpha: 0.2 + (1 - lum) * 0.22,
+        color: field ? colorFor(lum) : jitter(weightedPick(AIR)),
+        relief: lum < 0.55,
       });
     });
   }
@@ -317,17 +691,88 @@ function createPainting(canvas, options = {}) {
   return { start };
 }
 
-/* ---------- Запуск полотен ---------- */
+/* ---------- Запуск ---------- */
 
-(function initPaintings() {
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);   // нет натуры — холст просто останется абстрактным
+    img.src = src;
+  });
+}
+
+(async function initPaintings() {
   const hero = document.getElementById('paint-hero');
   if (hero) {
+    const portrait = await loadImage(hero.dataset.source || 'portrait.jpg');
+
+    // куда встаёт фигура: на широком экране справа, на телефоне — ниже текста
+    const figureBox = (w, h) => (
+      w / h < 1.05
+        ? { x: 0.04, y: 0.34, w: 0.92, h: 0.64 }
+        // широкий экран: фигура слева, текст уходит вправо
+        : { x: 0.0, y: 0.12, w: 0.375, h: 0.88 }
+    );
+
+    // геометрия луны — общая для подмалёвка и для поля мазков
+    const moonGeom = (w, h) => {
+      const b = figureBox(w, h);
+      const narrow = w / h < 1.05;
+      return {
+        // нимб за головой: диск заметно меньше фигуры,
+        // тело остаётся на тёмном небе и стекло читается
+        cx: (b.x + b.w * (narrow ? 0.78 : 0.92)) * w,
+        cy: (b.y + b.h * (narrow ? 0.12 : 0.16)) * h,
+        r: Math.min(w, h) * (narrow ? 0.17 : 0.165),
+        reach: 5.0,
+      };
+    };
+
     createPainting(hero, {
-      density: 0.00030,
-      alpha: 0.44,
+      alpha: 0.9,
       interactive: true,
-      // краска гуще справа и по нижнему краю — слева остаётся воздух под текст
-      bias: (u, v) => Math.min(1, 0.16 + u * 1.15 + v * 0.35),
+      skipLight: true,
+      // у фигуры кисть мельче и точнее, к правому краю — широкая и вольная
+      sizeAt: (u) => 0.72 + Math.pow(Math.max(0, u - 0.1) / 0.9, 1.5) * 2.6,
+
+      /* Тонировка холста: ночь и диск луны кладутся сплошным тоном,
+         иначе отдельные мазки висят в пустоте и не образуют неба. */
+      underpaint: (ctx, w, h) => {
+        const { cx, cy, r, reach } = moonGeom(w, h);
+
+        const sky = ctx.createRadialGradient(cx, cy, r * 0.9, cx, cy, r * reach);
+        sky.addColorStop(0.00, 'rgba(15, 22, 66, 0.96)');
+        sky.addColorStop(0.22, 'rgba(20, 32, 94, 0.92)');
+        sky.addColorStop(0.55, 'rgba(31, 53, 168, 0.45)');
+        sky.addColorStop(1.00, 'rgba(31, 53, 168, 0)');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, h);
+
+        const disc = ctx.createRadialGradient(
+          cx - r * 0.18, cy - r * 0.2, r * 0.05, cx, cy, r
+        );
+        disc.addColorStop(0.00, 'rgba(247, 243, 230, 0.97)');
+        disc.addColorStop(0.62, 'rgba(226, 231, 240, 0.93)');
+        disc.addColorStop(0.93, 'rgba(178, 196, 228, 0.85)');
+        disc.addColorStop(1.00, 'rgba(150, 174, 214, 0)');
+        ctx.fillStyle = disc;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      },
+
+      // луна встаёт за головой
+      makeField: (w, h) => makeMoonField(w, h, moonGeom(w, h)),
+      // портрет — не краска, а линза поверх написанной луны
+      glass: {
+        image: portrait,
+        box: figureBox,
+        refraction: 95,
+        tint: [206, 222, 248],
+        rim: 0.32,
+        ghost: 0.66,
+      },
     }).start();
   }
 
@@ -336,10 +781,8 @@ function createPainting(canvas, options = {}) {
     createPainting(cta, {
       density: 0.00022,
       alpha: 0.4,
-      minW: 30, maxW: 96,
-      minL: 200, maxL: 520,
       scale: 0.0018,
-      bias: (u, v) => 0.35 + Math.abs(u - 0.5) * 1.3 + (1 - v) * 0.2,
+      ambientBias: (u, v) => 0.35 + Math.abs(u - 0.5) * 1.3 + (1 - v) * 0.2,
     }).start();
   }
 })();
@@ -386,7 +829,7 @@ function createPainting(canvas, options = {}) {
   update();
 })();
 
-/* ---------- Активный раздел в навигации ---------- */
+/* ---------- Активный раздел ---------- */
 
 (function navHighlight() {
   const links = [...document.querySelectorAll('.main-nav a')];
@@ -407,7 +850,7 @@ function createPainting(canvas, options = {}) {
   targets.forEach((t) => io.observe(t));
 })();
 
-/* ---------- Линия процесса заполняется по скроллу ---------- */
+/* ---------- Линия процесса ---------- */
 
 (function processLine() {
   const list = document.querySelector('.process-list');
