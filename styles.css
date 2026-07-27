@@ -168,7 +168,12 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
   overflow: hidden; z-index: 2;
 }
 
-.paint-host { position: absolute; inset: 0; cursor: crosshair; }
+/* pan-y оставляет вертикальную прокрутку странице,
+   а протяжку в сторону отдаёт кисти */
+.paint-host {
+  position: absolute; inset: 0; cursor: crosshair;
+  touch-action: pan-y;
+}
 #paint-hero { width: 100%; height: 100%; display: block; }
 
 /* заголовок стоит справа над холстом; стеклом только выделенная фраза */
@@ -485,8 +490,11 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
 }
 
 /* сенсорные экраны: hover-эффекты не нужны, курсора нет */
+/* подсказка по способу ввода */
+.hint-touch { display: none; }
 @media (hover: none) {
-  .hero-hint { display: none; }
+  .hint-mouse { display: none; }
+  .hint-touch { display: inline; }
   .paint-host { cursor: default; }
   .panel:hover { transform: none; }
   .tag:hover { transform: none; }

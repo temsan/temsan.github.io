@@ -1089,7 +1089,8 @@ function createPainting(canvas, options = {}) {
 
   let jobs = null;
   let startedAt = 0;
-  const PAINT_DEADLINE = 5200;
+  // на телефоне холст должен быть готов почти сразу: дальше он в руках человека
+  const PAINT_DEADLINE = window.innerWidth < 760 ? 1500 : 2600;
 
   // живопись дописана — опускаем стеклянную фигуру поверх неё
   function finish() {
@@ -1106,7 +1107,7 @@ function createPainting(canvas, options = {}) {
   function tick() {
     const t0 = performance.now();
     if (jobs) {
-      while (painted < jobs.length && performance.now() - t0 < 12) runJob(jobs[painted++]);
+      while (painted < jobs.length && performance.now() - t0 < 16) runJob(jobs[painted++]);
       // стекло ложится только поверх готовой живописи, поэтому у неё есть срок:
       // не уложились — останавливаемся на достигнутом и накрываем линзой
       const overdue = performance.now() - startedAt > PAINT_DEADLINE;
@@ -1138,10 +1139,12 @@ function createPainting(canvas, options = {}) {
 
   function start() {
     if (!resize()) return;
+    lastW = w; lastH = h;
     ctx.clearRect(0, 0, w, h);
     if (underpaint) underpaint(ctx, w, h);
     layWashes();
 
+    if (overlay) overlay(ctx, w, h);
     jobs = field ? buildJobs() : null;
     const d = typeof density === 'function' ? density() : density;
     budget = Math.round(w * h * d);
@@ -1157,34 +1160,53 @@ function createPainting(canvas, options = {}) {
     }
   }
 
-  // кисть под курсором — дописывает картину, не ломая форму
+  /* Кисть под пальцем и курсором. Для касания нужен pointerdown: тап
+     тоже должен оставлять мазок, а не только протяжка.               */
   if (interactive && !reduceMotion) {
     let last = 0;
-    canvas.parentElement.addEventListener('pointermove', (e) => {
+
+    const strokeAt = (clientX, clientY, force) => {
       const now = performance.now();
-      if (now - last < 55) return;
+      if (!force && now - last < 40) return;
       last = now;
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left, y = e.clientY - rect.top;
-      // по стеклу не пишем — иначе линза замажется краской
-      if (thicknessAt(x / w, y / h) > 0.07) return;
+      const x = clientX - rect.left, y = clientY - rect.top;
+      if (x < 0 || y < 0 || x > w || y > h) return;
+
       const lum = field ? field.lum(x / w, y / h) : 0.6;
+      // мазок идёт вдоль потока — рука дописывает то же течение
       paintStroke(ctx, field ? directedAngle(x, y) : angleAt, x, y, {
-        length: 70 + Math.random() * 120,
-        width: 12 + Math.random() * 26,
-        bristles: 11,
-        alpha: 0.2 + (1 - lum) * 0.22,
+        length: 90 + Math.random() * 150,
+        width: 10 + Math.random() * 24,
+        bristles: 9,
+        alpha: 0.3 + (1 - lum) * 0.3,
         color: field ? colorFor(lum) : jitter(weightedPick(AIR)),
         relief: lum < 0.55,
       });
-      if (onPaint) onPaint();
+    };
+
+    const host = canvas.parentElement;
+    host.addEventListener('pointerdown', (e) => strokeAt(e.clientX, e.clientY, true));
+    host.addEventListener('pointermove', (e) => {
+      // рисуем при движении мыши и при протяжке пальцем
+      if (e.pointerType !== 'mouse' && e.buttons === 0 && e.pressure === 0) return;
+      strokeAt(e.clientX, e.clientY, false);
     });
   }
 
-  let resizeTimer;
+  /* Мобильные браузеры шлют resize, когда прячется адресная строка.
+     Перерисовывать по этому поводу нельзя — иначе всё, что человек
+     нарисовал, стирается прямо во время прокрутки.                  */
+  let resizeTimer, lastW = 0, lastH = 0;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(start, 220);
+    resizeTimer = setTimeout(() => {
+      const rect = canvas.getBoundingClientRect();
+      const bigChange = Math.abs(rect.width - lastW) > 24
+                     || Math.abs(rect.height - lastH) > 180;
+      if (!bigChange) return;
+      start();
+    }, 260);
   });
 
   return { start };
