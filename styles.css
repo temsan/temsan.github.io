@@ -168,7 +168,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 /* холст занимает весь экран, текст ему больше не мешает */
 .hero {
   position: relative; height: 92vh; min-height: 520px;
-  overflow: hidden; z-index: 2; background: #101a4a;
+  overflow: hidden; z-index: 2; background: #e7eefc;
 }
 
 /* pan-y оставляет вертикальную прокрутку странице,
@@ -179,16 +179,17 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 }
 #paint-hero { width: 100%; height: 100%; display: block; }
 
-/* Цвет букв сдвинут по цветовому кругу от основы, а не выведен в
-   противоположную точку. База — голубой ультрамарин, 226°.
-   Четыре строки идут по четырём формулам, чтобы сравнить.            */
+/* Буквы вычитаются из живописи, то есть инвертируют её вживую. Полная
+   инверсия даёт противоположную точку круга, поэтому каждая строка
+   выворачивает лишь часть каналов — так сдвиг выходит на треть-четверть
+   круга, а не на половину. Цвет источника и задаёт формулу.          */
 .hero { isolation: isolate; }
 
 .hero-inner {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
   display: flex; align-items: flex-start; justify-content: center;
   padding: clamp(24px, 4vh, 52px) 28px 0;
-
+  mix-blend-mode: difference;
 }
 
 .hero-title {
@@ -204,14 +205,14 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 
 .hero-title .line { display: block; }
 
-/* +90°, четверть круга вперёд → пурпур */
-.shift-q-plus  { color: hsl(316 62% 46%); }
-/* +120°, треть круга вперёд → малиновый */
-.shift-t-plus  { color: hsl(346 60% 48%); }
-/* −120°, треть круга назад → зелёный */
-.shift-t-minus { color: hsl(106 46% 33%); }
-/* −90°, четверть круга назад → изумруд */
-.shift-q-minus { color: hsl(136 44% 32%); }
+/* выворачиваются зелёный и синий, красный остаётся как есть */
+.shift-q-plus  { color: #00ffff; }
+/* выворачиваются красный и синий */
+.shift-t-plus  { color: #ff00ff; }
+/* выворачиваются красный и зелёный */
+.shift-t-minus { color: #ffff00; }
+/* выворачиваются все три — полная инверсия, для сравнения */
+.shift-q-minus { color: #ffffff; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
