@@ -178,24 +178,23 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 }
 #paint-hero { width: 100%; height: 100%; display: block; }
 
-/* Заголовок лежит поверх холста и смешивается с ним инверсией: что под
-   буквой темно — буква светлеет, что светло — темнеет. Читается на любом
-   фоне сама по себе, без вуалей и подложек.                            */
+/* Заголовок лежит поверх холста и смешивается с ним по светлоте: цвет
+   букв берётся у самой живописи, меняется только тон. Получается соседний
+   оттенок того же семейства, а не чужой цвет поверх картины.           */
 .hero { isolation: isolate; }
 
 .hero-inner {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
   display: flex; align-items: flex-start; justify-content: center;
   padding: clamp(24px, 4vh, 52px) 28px 0;
-  /* приглушаем инверсию: эффект остаётся, но перестаёт спорить с живописью */
-  mix-blend-mode: difference;
-  opacity: 0.88;
+  mix-blend-mode: luminosity;
+  opacity: 0.92;
 }
 
 .hero-title {
   font-family: var(--ui); font-weight: 800;
   font-size: clamp(44px, 11.5vw, 104px); line-height: 0.92;
-  letter-spacing: -0.035em; text-align: left; color: #fff;
+  letter-spacing: -0.035em; text-align: left; color: #e8eefb;
   width: 100%; max-width: 720px;
   text-wrap: balance;
 }
