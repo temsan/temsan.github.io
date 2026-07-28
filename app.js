@@ -226,7 +226,7 @@ function buildGalaxyField(w, h, { cx, cy, r, reach = 3.4 }) {
       const fade = smooth(0.6, reach, rad);
 
       const night = 0.13 + arms * 0.17 + turb * 0.06 + core * 0.95;
-      const L = night * (1 - fade) + 0.98 * fade;
+      const L = night * (1 - fade) + 0.05 * fade;
 
       const v = Math.min(255, Math.max(0, L * 255)) | 0;
       const i = (py * mw + pxi) * 4;
@@ -1247,11 +1247,14 @@ function loadImage(src) {
       underpaint: (ctx, w, h) => {
         const { cx, cy, r, reach } = coreGeom(w, h);
 
+        ctx.fillStyle = '#04060d';
+        ctx.fillRect(0, 0, w, h);
+
         const sky = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * reach);
         sky.addColorStop(0.00, 'rgba(18, 28, 84, 0.95)');
         sky.addColorStop(0.30, 'rgba(20, 32, 94, 0.9)');
         sky.addColorStop(0.62, 'rgba(31, 53, 168, 0.4)');
-        sky.addColorStop(1.00, 'rgba(31, 53, 168, 0)');
+        sky.addColorStop(1.00, 'rgba(10, 16, 46, 0)');
         ctx.fillStyle = sky;
         ctx.fillRect(0, 0, w, h);
 
