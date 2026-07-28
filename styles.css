@@ -177,30 +177,25 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 }
 #paint-hero { width: 100%; height: 100%; display: block; }
 
-/* заголовок стоит справа над холстом; стеклом только выделенная фраза */
+/* Заголовок лежит поверх холста и смешивается с ним инверсией: что под
+   буквой темно — буква светлеет, что светло — темнеет. Читается на любом
+   фоне сама по себе, без вуалей и подложек.                            */
+.hero { isolation: isolate; }
+
 .hero-inner {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  display: flex; align-items: center; justify-content: flex-end;
-  padding: 0 clamp(24px, 5vw, 84px);
+  display: flex; align-items: center;
+  padding: 0 clamp(24px, 6vw, 96px);
+  mix-blend-mode: difference;
 }
-/* лёгкая вуаль под текстом: живопись остаётся видна, буквы читаются */
-.hero-inner::after {
-  content: ''; position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(265deg,
-    rgba(10, 16, 46, 0.55) 0%, rgba(10, 16, 46, 0.34) 34%, transparent 62%);
-}
+
 .hero-title {
-  font-family: var(--ui); font-weight: 600;
-  font-size: clamp(32px, 5.4vw, 78px); line-height: 1.05;
-  letter-spacing: -0.02em; text-align: right; color: var(--linen-3);
-  text-shadow: 0 2px 26px rgba(8, 14, 40, 0.55), 0 1px 3px rgba(8, 14, 40, 0.4);
-  max-width: 62%;
+  font-family: var(--ui); font-weight: 800;
+  font-size: clamp(40px, 7.4vw, 116px); line-height: 0.94;
+  letter-spacing: -0.035em; text-align: left; color: #fff;
+  max-width: 15ch;
 }
-/* выделение во фразе — акцентом, а не тяжёлым стеклом */
-.accent {
-  color: var(--pale);
-  background: linear-gradient(transparent 62%, rgba(79,127,224,0.35) 62%);
-}
+.accent { color: #fff; background: none; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -445,7 +440,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   .brand { font-size: 18px; }
   .header-cta { padding: 9px 15px; font-size: 13px; }
 
-  .hero { height: 74vh; min-height: 420px; }
+  .hero { height: 76vh; min-height: 440px; }
+  .hero-title { font-size: clamp(34px, 11vw, 62px); max-width: 11ch; }
   .hero-copy { padding: 38px 0 44px; }
   .lede { font-size: 17px; margin-bottom: 32px; }
   .eyebrow { font-size: 11px; letter-spacing: 0.16em; margin-bottom: 16px; }
