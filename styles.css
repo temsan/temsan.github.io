@@ -185,15 +185,17 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 .hero-inner {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
   display: flex; align-items: center;
-  padding: 0 clamp(24px, 6vw, 96px);
+  padding: 0 clamp(20px, 5vw, 80px);
+  /* приглушаем инверсию: эффект остаётся, но перестаёт спорить с живописью */
   mix-blend-mode: difference;
+  opacity: 0.62;
 }
 
 .hero-title {
   font-family: var(--ui); font-weight: 800;
-  font-size: clamp(40px, 7.4vw, 116px); line-height: 0.94;
+  font-size: clamp(52px, 9.6vw, 156px); line-height: 0.9;
   letter-spacing: -0.035em; text-align: left; color: #fff;
-  max-width: 15ch;
+  max-width: 13ch;
 }
 .accent { color: #fff; background: none; }
 
@@ -441,7 +443,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   .header-cta { padding: 9px 15px; font-size: 13px; }
 
   .hero { height: 76vh; min-height: 440px; }
-  .hero-title { font-size: clamp(34px, 11vw, 62px); max-width: 11ch; }
+  .hero-title { font-size: clamp(42px, 14vw, 76px); max-width: 9ch; }
   .hero-copy { padding: 38px 0 44px; }
   .lede { font-size: 17px; margin-bottom: 32px; }
   .eyebrow { font-size: 11px; letter-spacing: 0.16em; margin-bottom: 16px; }
