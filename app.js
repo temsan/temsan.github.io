@@ -226,7 +226,7 @@ function buildGalaxyField(w, h, { cx, cy, r, reach = 3.4 }) {
       const fade = smooth(0.6, reach, rad);
 
       const night = 0.13 + arms * 0.17 + turb * 0.06 + core * 0.95;
-      const L = night * (1 - fade) + 0.05 * fade;
+      const L = night * (1 - fade) + 0.2 * fade;
 
       const v = Math.min(255, Math.max(0, L * 255)) | 0;
       const i = (py * mw + pxi) * 4;
@@ -1247,7 +1247,7 @@ function loadImage(src) {
       underpaint: (ctx, w, h) => {
         const { cx, cy, r, reach } = coreGeom(w, h);
 
-        ctx.fillStyle = '#04060d';
+        ctx.fillStyle = '#101a4a';
         ctx.fillRect(0, 0, w, h);
 
         const sky = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * reach);
@@ -1273,13 +1273,57 @@ function loadImage(src) {
 
   const cta = document.getElementById('paint-cta');
   if (cta) {
+    // финальный блок держит тот же узор: потоки, стекающиеся в ядро
+    const ctaGeom = (w, h) => ({
+      cx: w * 0.5,
+      cy: h * 0.5,
+      r: Math.min(w, h) * 0.55,
+      reach: 3.0,
+    });
+
     createPainting(cta, {
-      density: 0.00022,
-      alpha: 0.4,
-      scale: 0.0018,
-      ambientBias: (u, v) => 0.35 + Math.abs(u - 0.5) * 1.3 + (1 - v) * 0.2,
+      alpha: 0.85,
+      skipLight: true,
+      sizeAt: (u) => 0.8 + Math.abs(u - 0.5) * 1.8,
+
+      underpaint: (ctx, w, h) => {
+        const { cx, cy, r, reach } = ctaGeom(w, h);
+        ctx.fillStyle = '#0d1440';
+        ctx.fillRect(0, 0, w, h);
+
+        const sky = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * reach);
+        sky.addColorStop(0.00, 'rgba(20, 32, 94, 0.9)');
+        sky.addColorStop(0.55, 'rgba(31, 53, 168, 0.35)');
+        sky.addColorStop(1.00, 'rgba(13, 20, 64, 0)');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, h);
+
+        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.4);
+        core.addColorStop(0.00, 'rgba(236, 240, 250, 0.7)');
+        core.addColorStop(1.00, 'rgba(150, 180, 235, 0)');
+        ctx.fillStyle = core;
+        ctx.beginPath(); ctx.arc(cx, cy, r * 0.4, 0, Math.PI * 2); ctx.fill();
+      },
+
+      makeField: (w, h) => buildGalaxyField(w, h, ctaGeom(w, h)),
+      overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 4071),
     }).start();
   }
+
+})();
+
+/* ---------- Уход на самый верх ----------
+   Якорь #top упирается в липкую шапку и не докручивает страницу до конца,
+   поэтому имя и ссылка «Наверх» скроллят к нулю напрямую и без анимации. */
+
+(function scrollToTop() {
+  document.querySelectorAll('a[href="#top"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      if (history.replaceState) history.replaceState(null, '', location.pathname);
+    });
+  });
 })();
 
 /* ---------- Появление секций ---------- */

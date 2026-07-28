@@ -29,7 +29,8 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; }
+/* прокрутка мгновенная: плавная анимация только тормозит переходы */
+html { scroll-behavior: auto; }
 
 body {
   background: var(--linen);
@@ -167,7 +168,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 /* холст занимает весь экран, текст ему больше не мешает */
 .hero {
   position: relative; height: 92vh; min-height: 520px;
-  overflow: hidden; z-index: 2; background: #04060d;
+  overflow: hidden; z-index: 2; background: #101a4a;
 }
 
 /* pan-y оставляет вертикальную прокрутку странице,
@@ -179,7 +180,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 #paint-hero { width: 100%; height: 100%; display: block; }
 
 /* Инвертированы сами буквы, а не холст: цвет литер — обратный цвету
-   основы (#04060d → #fbf9f2), поэтому они сплошные и живопись сквозь
+   основы, поэтому они сплошные и живопись сквозь
    них не просвечивает.                                               */
 .hero { isolation: isolate; }
 
