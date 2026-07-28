@@ -179,10 +179,10 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 }
 #paint-hero { width: 100%; height: 100%; display: block; }
 
-/* Буквы вычитаются из живописи, то есть инвертируют её вживую. Полная
-   инверсия даёт противоположную точку круга, поэтому каждая строка
-   выворачивает лишь часть каналов — так сдвиг выходит на треть-четверть
-   круга, а не на половину. Цвет источника и задаёт формулу.          */
+/* Буквы вычитаются из живописи, поэтому их цвет всегда считается от
+   подложки. Источник взят тёмным и малонасыщенным: вычитание выходит
+   небольшим, буквы уходят от фона на шаг по кругу и темнеют настолько,
+   чтобы читаться, — без выкрученных цветов.                          */
 .hero { isolation: isolate; }
 
 .hero-inner {
@@ -190,6 +190,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   display: flex; align-items: flex-start; justify-content: center;
   padding: clamp(24px, 4vh, 52px) 28px 0;
   mix-blend-mode: difference;
+  opacity: 0.9;
 }
 
 .hero-title {
@@ -205,14 +206,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 
 .hero-title .line { display: block; }
 
-/* выворачиваются зелёный и синий, красный остаётся как есть */
-.shift-q-plus  { color: #00ffff; }
-/* выворачиваются красный и синий */
-.shift-t-plus  { color: #ff00ff; }
-/* выворачиваются красный и зелёный */
-.shift-t-minus { color: #ffff00; }
-/* выворачиваются все три — полная инверсия, для сравнения */
-.shift-q-minus { color: #ffffff; }
+.hero-title { color: #4a6ea0; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
