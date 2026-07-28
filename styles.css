@@ -20,9 +20,10 @@
   --text-soft: #4b4f68;
   --rule: rgba(31, 53, 168, 0.16);
 
-  --display: 'Playfair Display', Georgia, serif;
-  --body: 'Spectral', Georgia, serif;
-  --ui: 'Plus Jakarta Sans', sans-serif;
+  /* одна гарнитура на весь сайт: иерархию держим начертанием и размером */
+  --display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --ui: 'Plus Jakarta Sans', system-ui, sans-serif;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -34,8 +35,8 @@ body {
   background: var(--linen);
   color: var(--text);
   font-family: var(--body);
-  font-size: 17px;
-  line-height: 1.68;
+  font-size: 16.5px;
+  line-height: 1.62;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -79,7 +80,7 @@ a { color: inherit; text-decoration: none; }
 
 .header-row { display: flex; align-items: center; justify-content: space-between; height: 78px; }
 
-.brand { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-size: 20px; letter-spacing: 0.01em; }
+.brand { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; }
 .brand-blot {
   width: 22px; height: 22px; flex-shrink: 0;
   background: radial-gradient(circle at 35% 35%, var(--cobalt), var(--ultra-deep));
@@ -152,13 +153,13 @@ a { color: inherit; text-decoration: none; }
   color: var(--sienna); margin-bottom: 22px;
 }
 
-h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.015em; color: var(--ultra-ink); }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.025em; color: var(--ultra-ink); }
 
 .section-title {
-  font-size: clamp(30px, 4vw, 50px); line-height: 1.16;
+  font-size: clamp(28px, 3.6vw, 46px); line-height: 1.14;
   max-width: 20ch; margin-bottom: 60px;
 }
-.section-title em { font-style: italic; color: var(--ultra); }
+.section-title em { font-style: normal; color: var(--ultra); }
 
 /* ---------- HERO ---------- */
 
@@ -228,8 +229,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
 .copy-inner { max-width: 760px; }
 
 .lede {
-  font-size: 20px; color: var(--text-soft); max-width: 660px;
-  margin-bottom: 36px; font-weight: 300;
+  font-size: 19px; color: var(--text-soft); max-width: 640px;
+  margin-bottom: 36px; font-weight: 400;
 }
 
 .hero-actions { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
@@ -285,7 +286,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
   letter-spacing: 0.18em; color: var(--sienna);
 }
 .panel h3 { font-size: 22px; margin: 12px 0 12px; line-height: 1.25; }
-.panel p { color: var(--text-soft); font-size: 16px; font-weight: 300; }
+.panel p { color: var(--text-soft); font-size: 15.5px; font-weight: 400; }
 
 .problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
 .products-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
@@ -337,7 +338,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
   transition: background 0.45s var(--ease), box-shadow 0.45s var(--ease);
 }
 .step-dot i {
-  font-family: var(--display); font-style: normal; font-size: 21px; color: var(--ultra);
+  font-family: var(--display); font-style: normal; font-weight: 600; font-size: 18px; color: var(--ultra);
   transition: color 0.45s var(--ease);
 }
 .process-step:hover .step-dot { transform: rotate(-6deg) scale(1.07); }
@@ -345,7 +346,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
 .process-step:hover .step-dot i { color: var(--linen-3); }
 
 .step-body h3 { font-size: 24px; margin-bottom: 8px; }
-.step-body p { color: var(--text-soft); max-width: 620px; font-weight: 300; }
+.step-body p { color: var(--text-soft); max-width: 620px; font-weight: 400; }
 
 /* ---------- аудитория ---------- */
 
@@ -380,7 +381,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
 
 .faq-item summary {
   cursor: pointer; list-style: none; font-family: var(--display);
-  font-size: 21px; color: var(--ultra-ink);
+  font-weight: 500; font-size: 19px; color: var(--ultra-ink);
   display: flex; justify-content: space-between; align-items: center; gap: 20px;
 }
 .faq-item summary::-webkit-details-marker { display: none; }
@@ -392,7 +393,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
 .faq-item[open] summary::after { transform: scale(0.5); background: var(--sienna); }
 
 .faq-item p {
-  color: var(--text-soft); margin-top: 14px; max-width: 70ch; font-weight: 300;
+  color: var(--text-soft); margin-top: 14px; max-width: 68ch; font-weight: 400;
   animation: faq-open 0.45s var(--ease);
 }
 @keyframes faq-open { from { opacity: 0; transform: translateY(-8px); } }
@@ -411,7 +412,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
   line-height: 1.14; margin-bottom: 22px;
 }
 .cta-section p {
-  color: rgba(239,233,220,0.8); margin-bottom: 42px; font-size: 18px; font-weight: 300;
+  color: rgba(239,233,220,0.82); margin-bottom: 42px; font-size: 17.5px; font-weight: 400;
 }
 
 /* ---------- подвал ---------- */
@@ -535,7 +536,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.0
   font-family: var(--ui); font-size: 13px; font-weight: 600;
   letter-spacing: 0.1em; text-transform: uppercase; color: var(--ultra);
 }
-.trust-val { font-size: 15px; color: var(--text-soft); font-weight: 300; line-height: 1.5; }
+.trust-val { font-size: 14.5px; color: var(--text-soft); font-weight: 400; line-height: 1.5; }
 
 @media (max-width: 980px) { .trust-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .trust-grid { grid-template-columns: 1fr; gap: 20px; } }
