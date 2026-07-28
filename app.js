@@ -1212,6 +1212,243 @@ function createPainting(canvas, options = {}) {
   return { start };
 }
 
+/* ---------- Вода по стеклу ----------
+   За стеклом — та же сцена: потоки, стекающиеся в ядро. Стекло запотело,
+   поэтому сцена видна размытой; капли работают линзами и показывают её
+   резко и перевёрнуто, как настоящая капля воды. Стекло можно протирать.
+   ------------------------------------------------------------------- */
+
+function createRainGlass(canvas, options = {}) {
+  const {
+    scene,                 // что нарисовать за стеклом
+    density = 0.00016,     // капель на пиксель площади
+    fog = 9,               // сила запотевания
+    interactive = false,
+  } = options;
+
+  const ctx = canvas.getContext('2d');
+  let w = 0, h = 0, dpr = 1;
+  let sharp = null, fogged = null, drops = [];
+  let wipe = null;         // маска протёртого стекла
+
+  function makeLayer() {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * dpr));
+    c.height = Math.max(1, Math.round(h * dpr));
+    const cc = c.getContext('2d');
+    cc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { c, cc };
+  }
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    w = rect.width; h = rect.height;
+    if (!w || !h) return false;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return true;
+  }
+
+  function seedDrops() {
+    const rnd = seededRandom(90210);
+    const count = Math.round(w * h * density);
+    drops = [];
+
+    for (let i = 0; i < count; i++) {
+      const big = rnd() > 0.86;
+      const r = big ? 12 + rnd() * 22 : 2.5 + rnd() * 7;
+      // крупные капли вытягиваются вниз под собственным весом
+      const stretch = big ? 1.15 + rnd() * 0.5 : 1 + rnd() * 0.12;
+      drops.push({
+        x: rnd() * w, y: rnd() * h,
+        rx: r, ry: r * stretch,
+        trail: big && rnd() > 0.45,
+        seed: rnd(),
+      });
+    }
+    // крупные рисуем последними, чтобы они читались поверх мелочи
+    drops.sort((a, b) => a.rx - b.rx);
+  }
+
+  // капля собирает сцену и показывает её перевёрнутой
+  function drawDrop(d) {
+    const { x, y, rx, ry } = d;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(x, y + ry * 0.06, rx, ry, 0, 0, Math.PI * 2);
+    ctx.clip();
+
+    const m = 0.42 + d.seed * 0.16;      // сколько сцены вмещает капля
+    ctx.translate(x, y);
+    ctx.scale(-m, -m);
+    ctx.translate(-x, -y);
+    ctx.drawImage(sharp, 0, 0, w, h);
+    ctx.restore();
+
+    ctx.save();
+    // ободок: свет собирается по краю капли
+    ctx.beginPath();
+    ctx.ellipse(x, y + ry * 0.06, rx, ry, 0, 0, Math.PI * 2);
+    const rim = ctx.createRadialGradient(x, y, rx * 0.55, x, y, rx * 1.02);
+    rim.addColorStop(0, 'rgba(255,255,255,0)');
+    rim.addColorStop(0.82, 'rgba(210, 228, 255, 0.16)');
+    rim.addColorStop(1, 'rgba(255,255,255,0.4)');
+    ctx.fillStyle = rim;
+    ctx.fill();
+
+    // блик сверху-слева и подсвет снизу
+    ctx.beginPath();
+    ctx.ellipse(x - rx * 0.34, y - ry * 0.38, rx * 0.24, ry * 0.19, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.ellipse(x + rx * 0.2, y + ry * 0.45, rx * 0.3, ry * 0.16, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(190, 214, 255, 0.22)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // потёк: капля сползла и оставила прочищенную дорожку
+  function drawTrail(d) {
+    const len = d.ry * (6 + d.seed * 14);
+    const top = d.y - len;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(d.x - d.rx * 0.42, d.y);
+    ctx.lineTo(d.x + d.rx * 0.42, d.y);
+    ctx.lineTo(d.x + d.rx * 0.2, top);
+    ctx.lineTo(d.x - d.rx * 0.2, top);
+    ctx.closePath();
+    ctx.clip();
+
+    // внутри дорожки стекло чистое
+    ctx.drawImage(sharp, 0, 0, w, h);
+
+    const wet = ctx.createLinearGradient(0, top, 0, d.y);
+    wet.addColorStop(0, 'rgba(190, 214, 255, 0)');
+    wet.addColorStop(1, 'rgba(210, 230, 255, 0.16)');
+    ctx.fillStyle = wet;
+    ctx.fillRect(d.x - d.rx, top, d.rx * 2, len);
+    ctx.restore();
+
+    // осевшие капельки вдоль дорожки
+    const rnd = seededRandom((d.seed * 1e6) | 0);
+    const beads = 3 + ((rnd() * 5) | 0);
+    for (let i = 0; i < beads; i++) {
+      const t = rnd();
+      drawDrop({
+        x: d.x + (rnd() - 0.5) * d.rx * 0.7,
+        y: top + len * t,
+        rx: d.rx * (0.16 + rnd() * 0.24),
+        ry: d.rx * (0.16 + rnd() * 0.26),
+        seed: rnd(),
+      });
+    }
+  }
+
+  function compose() {
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(fogged, 0, 0, w, h);
+
+    // протёртые места показывают сцену резко
+    if (wipe) {
+      const tmp = makeLayer();
+      tmp.cc.drawImage(sharp, 0, 0, w, h);
+      tmp.cc.globalCompositeOperation = 'destination-in';
+      tmp.cc.drawImage(wipe.c, 0, 0, w, h);
+      ctx.drawImage(tmp.c, 0, 0, w, h);
+    }
+
+    for (const d of drops) {
+      if (d.trail) drawTrail(d);
+      drawDrop(d);
+    }
+  }
+
+  function start() {
+    if (!resize()) return;
+
+    // сцена за стеклом
+    const s = makeLayer();
+    if (scene) scene(s.cc, w, h);
+    sharp = s.c;
+
+    // запотевание
+    const f = makeLayer();
+    f.cc.filter = `blur(${fog}px) saturate(0.9)`;
+    f.cc.drawImage(sharp, 0, 0, w, h);
+    f.cc.filter = 'none';
+    f.cc.fillStyle = 'rgba(214, 226, 248, 0.1)';
+    f.cc.fillRect(0, 0, w, h);
+    fogged = f.c;
+
+    wipe = makeLayer();
+    seedDrops();
+    compose();
+  }
+
+  if (interactive && !reduceMotion) {
+    const host = canvas.parentElement;
+    let last = 0;
+
+    const wipeAt = (clientX, clientY) => {
+      if (!wipe) return;
+      const now = performance.now();
+      if (now - last < 28) return;
+      last = now;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left, y = clientY - rect.top;
+      if (x < 0 || y < 0 || x > w || y > h) return;
+
+      const r = 34 + Math.random() * 26;
+      const g = wipe.cc.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      wipe.cc.fillStyle = g;
+      wipe.cc.beginPath();
+      wipe.cc.arc(x, y, r, 0, Math.PI * 2);
+      wipe.cc.fill();
+
+      // за пальцем собираются свежие капли
+      if (Math.random() > 0.55) {
+        const rr = 3 + Math.random() * 9;
+        drops.push({
+          x: x + (Math.random() - 0.5) * r,
+          y: y + (Math.random() - 0.5) * r,
+          rx: rr, ry: rr * (1 + Math.random() * 0.2),
+          trail: false, seed: Math.random(),
+        });
+      }
+      compose();
+    };
+
+    host.addEventListener('pointerdown', (e) => wipeAt(e.clientX, e.clientY));
+    host.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse' && e.buttons === 0 && e.pressure === 0) return;
+      wipeAt(e.clientX, e.clientY);
+    });
+  }
+
+  let resizeTimer, lastW = 0, lastH = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const rect = canvas.getBoundingClientRect();
+      if (Math.abs(rect.width - lastW) < 24 && Math.abs(rect.height - lastH) < 180) return;
+      lastW = rect.width; lastH = rect.height;
+      start();
+    }, 260);
+  });
+
+  return { start };
+}
+
 /* ---------- Запуск ---------- */
 
 function loadImage(src) {
@@ -1223,11 +1460,48 @@ function loadImage(src) {
   });
 }
 
-(async function initPaintings() {
+(function initScenes() {
+  // Сцена за стеклом: ночь, ядро и звёзды. Мазки заменены водой по стеклу,
+  // поэтому поле рисуется тоном, а не кистью.
+  const nightScene = (geom) => (ctx, w, h) => {
+    const { cx, cy, r, reach } = geom(w, h);
+
+    ctx.fillStyle = '#101a4a';
+    ctx.fillRect(0, 0, w, h);
+
+    const sky = ctx.createRadialGradient(cx, cy, r * 0.08, cx, cy, r * reach);
+    sky.addColorStop(0.00, 'rgba(24, 38, 108, 0.95)');
+    sky.addColorStop(0.32, 'rgba(20, 32, 94, 0.85)');
+    sky.addColorStop(0.66, 'rgba(31, 53, 168, 0.4)');
+    sky.addColorStop(1.00, 'rgba(13, 20, 64, 0)');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    // рукава, стекающиеся в ядро
+    const field = buildGalaxyField(w, h, geom(w, h));
+    const step = 4;
+    for (let y = 0; y < h; y += step) {
+      for (let x = 0; x < w; x += step) {
+        const l = field.lum(x / w, y / h);
+        if (l < 0.22) continue;
+        ctx.fillStyle = `hsla(226, ${46 + (1 - l) * 24}%, ${12 + l * 62}%, ${Math.min(0.5, (l - 0.2) * 0.9)})`;
+        ctx.fillRect(x, y, step, step);
+      }
+    }
+
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.5);
+    core.addColorStop(0.00, 'rgba(248, 246, 236, 0.95)');
+    core.addColorStop(0.3, 'rgba(200, 216, 246, 0.5)');
+    core.addColorStop(1.00, 'rgba(150, 180, 235, 0)');
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.fill();
+
+    paintStarfield(ctx, w, h, 20260726);
+  };
+
   const hero = document.getElementById('paint-hero');
   if (hero) {
-    // ядро смещено влево: справа остаётся спокойное поле под заголовок
-    const coreGeom = (w, h) => {
+    const geom = (w, h) => {
       const narrow = w / h < 1.05;
       return {
         cx: w * (narrow ? 0.5 : 0.3),
@@ -1236,80 +1510,14 @@ function loadImage(src) {
         reach: 3.4,
       };
     };
-
-    createPainting(hero, {
-      alpha: 0.9,
-      interactive: true,
-      skipLight: true,
-      sizeAt: (u) => 0.75 + Math.pow(Math.max(0, u - 0.1) / 0.9, 1.4) * 2.2,
-
-      // тонировка: глубина ночи и свет ядра
-      underpaint: (ctx, w, h) => {
-        const { cx, cy, r, reach } = coreGeom(w, h);
-
-        ctx.fillStyle = '#101a4a';
-        ctx.fillRect(0, 0, w, h);
-
-        const sky = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * reach);
-        sky.addColorStop(0.00, 'rgba(18, 28, 84, 0.95)');
-        sky.addColorStop(0.30, 'rgba(20, 32, 94, 0.9)');
-        sky.addColorStop(0.62, 'rgba(31, 53, 168, 0.4)');
-        sky.addColorStop(1.00, 'rgba(10, 16, 46, 0)');
-        ctx.fillStyle = sky;
-        ctx.fillRect(0, 0, w, h);
-
-        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.5);
-        core.addColorStop(0.00, 'rgba(248, 246, 236, 0.95)');
-        core.addColorStop(0.28, 'rgba(200, 216, 246, 0.55)');
-        core.addColorStop(1.00, 'rgba(150, 180, 235, 0)');
-        ctx.fillStyle = core;
-        ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.fill();
-      },
-
-      makeField: (w, h) => buildGalaxyField(w, h, coreGeom(w, h)),
-      overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 20260726),
-    }).start();
+    createRainGlass(hero, { scene: nightScene(geom), interactive: true }).start();
   }
 
   const cta = document.getElementById('paint-cta');
   if (cta) {
-    // финальный блок держит тот же узор: потоки, стекающиеся в ядро
-    const ctaGeom = (w, h) => ({
-      cx: w * 0.5,
-      cy: h * 0.5,
-      r: Math.min(w, h) * 0.55,
-      reach: 3.0,
-    });
-
-    createPainting(cta, {
-      alpha: 0.85,
-      skipLight: true,
-      sizeAt: (u) => 0.8 + Math.abs(u - 0.5) * 1.8,
-
-      underpaint: (ctx, w, h) => {
-        const { cx, cy, r, reach } = ctaGeom(w, h);
-        ctx.fillStyle = '#0d1440';
-        ctx.fillRect(0, 0, w, h);
-
-        const sky = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * reach);
-        sky.addColorStop(0.00, 'rgba(20, 32, 94, 0.9)');
-        sky.addColorStop(0.55, 'rgba(31, 53, 168, 0.35)');
-        sky.addColorStop(1.00, 'rgba(13, 20, 64, 0)');
-        ctx.fillStyle = sky;
-        ctx.fillRect(0, 0, w, h);
-
-        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.4);
-        core.addColorStop(0.00, 'rgba(236, 240, 250, 0.7)');
-        core.addColorStop(1.00, 'rgba(150, 180, 235, 0)');
-        ctx.fillStyle = core;
-        ctx.beginPath(); ctx.arc(cx, cy, r * 0.4, 0, Math.PI * 2); ctx.fill();
-      },
-
-      makeField: (w, h) => buildGalaxyField(w, h, ctaGeom(w, h)),
-      overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 4071),
-    }).start();
+    const geom = (w, h) => ({ cx: w * 0.5, cy: h * 0.5, r: Math.min(w, h) * 0.55, reach: 3.0 });
+    createRainGlass(cta, { scene: nightScene(geom), density: 0.00012, fog: 7 }).start();
   }
-
 })();
 
 /* ---------- Уход на самый верх ----------
