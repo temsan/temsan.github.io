@@ -1294,8 +1294,8 @@ function createRainGlass(canvas, options = {}) {
     ctx.ellipse(x, y + ry * 0.06, rx, ry, 0, 0, Math.PI * 2);
     const rim = ctx.createRadialGradient(x, y, rx * 0.55, x, y, rx * 1.02);
     rim.addColorStop(0, 'rgba(255,255,255,0)');
-    rim.addColorStop(0.82, 'rgba(210, 228, 255, 0.16)');
-    rim.addColorStop(1, 'rgba(255,255,255,0.4)');
+    rim.addColorStop(0.82, 'rgba(74, 108, 196, 0.14)');
+    rim.addColorStop(1, 'rgba(62, 94, 180, 0.34)');
     ctx.fillStyle = rim;
     ctx.fill();
 
@@ -1307,7 +1307,7 @@ function createRainGlass(canvas, options = {}) {
 
     ctx.beginPath();
     ctx.ellipse(x + rx * 0.2, y + ry * 0.45, rx * 0.3, ry * 0.16, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(190, 214, 255, 0.22)';
+    ctx.fillStyle = 'rgba(96, 132, 214, 0.2)';
     ctx.fill();
     ctx.restore();
   }
@@ -1331,7 +1331,7 @@ function createRainGlass(canvas, options = {}) {
 
     const wet = ctx.createLinearGradient(0, top, 0, d.y);
     wet.addColorStop(0, 'rgba(190, 214, 255, 0)');
-    wet.addColorStop(1, 'rgba(210, 230, 255, 0.16)');
+    wet.addColorStop(1, 'rgba(120, 152, 226, 0.14)');
     ctx.fillStyle = wet;
     ctx.fillRect(d.x - d.rx, top, d.rx * 2, len);
     ctx.restore();
@@ -1383,7 +1383,7 @@ function createRainGlass(canvas, options = {}) {
     f.cc.filter = `blur(${fog}px) saturate(0.9)`;
     f.cc.drawImage(sharp, 0, 0, w, h);
     f.cc.filter = 'none';
-    f.cc.fillStyle = 'rgba(214, 226, 248, 0.1)';
+    f.cc.fillStyle = 'rgba(255, 255, 255, 0.18)';
     f.cc.fillRect(0, 0, w, h);
     fogged = f.c;
 
@@ -1463,40 +1463,42 @@ function loadImage(src) {
 (function initScenes() {
   // Сцена за стеклом: ночь, ядро и звёзды. Мазки заменены водой по стеклу,
   // поэтому поле рисуется тоном, а не кистью.
-  const nightScene = (geom) => (ctx, w, h) => {
+  /* Сцена за стеклом: свет и голубой ультрамарин. Поле рисуется тоном —
+     чем гуще поток, тем плотнее синева на светлом. */
+  const lightScene = (geom) => (ctx, w, h) => {
     const { cx, cy, r, reach } = geom(w, h);
 
-    ctx.fillStyle = '#101a4a';
+    ctx.fillStyle = '#e7eefc';
     ctx.fillRect(0, 0, w, h);
 
     const sky = ctx.createRadialGradient(cx, cy, r * 0.08, cx, cy, r * reach);
-    sky.addColorStop(0.00, 'rgba(24, 38, 108, 0.95)');
-    sky.addColorStop(0.32, 'rgba(20, 32, 94, 0.85)');
-    sky.addColorStop(0.66, 'rgba(31, 53, 168, 0.4)');
-    sky.addColorStop(1.00, 'rgba(13, 20, 64, 0)');
+    sky.addColorStop(0.00, 'rgba(255, 255, 255, 0.95)');
+    sky.addColorStop(0.30, 'rgba(196, 216, 250, 0.75)');
+    sky.addColorStop(0.68, 'rgba(120, 156, 232, 0.45)');
+    sky.addColorStop(1.00, 'rgba(90, 126, 214, 0)');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
-    // рукава, стекающиеся в ядро
+    // рукава, стекающиеся в ядро: синева тем плотнее, чем гуще поток
     const field = buildGalaxyField(w, h, geom(w, h));
     const step = 4;
     for (let y = 0; y < h; y += step) {
       for (let x = 0; x < w; x += step) {
         const l = field.lum(x / w, y / h);
-        if (l < 0.22) continue;
-        ctx.fillStyle = `hsla(226, ${46 + (1 - l) * 24}%, ${12 + l * 62}%, ${Math.min(0.5, (l - 0.2) * 0.9)})`;
+        if (l < 0.24) continue;
+        const dens = Math.min(1, (l - 0.22) * 1.5);
+        ctx.fillStyle = `hsla(226, ${52 + dens * 22}%, ${60 - dens * 26}%, ${dens * 0.5})`;
         ctx.fillRect(x, y, step, step);
       }
     }
 
-    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.5);
-    core.addColorStop(0.00, 'rgba(248, 246, 236, 0.95)');
-    core.addColorStop(0.3, 'rgba(200, 216, 246, 0.5)');
-    core.addColorStop(1.00, 'rgba(150, 180, 235, 0)');
+    // ядро: чистый свет
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.6);
+    core.addColorStop(0.00, 'rgba(255, 255, 255, 1)');
+    core.addColorStop(0.34, 'rgba(240, 246, 255, 0.72)');
+    core.addColorStop(1.00, 'rgba(214, 230, 255, 0)');
     ctx.fillStyle = core;
-    ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.fill();
-
-    paintStarfield(ctx, w, h, 20260726);
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2); ctx.fill();
   };
 
   const hero = document.getElementById('paint-hero');
@@ -1510,13 +1512,13 @@ function loadImage(src) {
         reach: 3.4,
       };
     };
-    createRainGlass(hero, { scene: nightScene(geom), interactive: true }).start();
+    createRainGlass(hero, { scene: lightScene(geom), interactive: true }).start();
   }
 
   const cta = document.getElementById('paint-cta');
   if (cta) {
     const geom = (w, h) => ({ cx: w * 0.5, cy: h * 0.5, r: Math.min(w, h) * 0.55, reach: 3.0 });
-    createRainGlass(cta, { scene: nightScene(geom), density: 0.00012, fog: 7 }).start();
+    createRainGlass(cta, { scene: lightScene(geom), density: 0.00012, fog: 7 }).start();
   }
 })();
 
