@@ -41,7 +41,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+/* один макет на все ширины: содержимое живёт в единой колонке */
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 28px; }
 
 a { color: inherit; text-decoration: none; }
 
@@ -156,7 +157,7 @@ a { color: inherit; text-decoration: none; }
 h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.025em; color: var(--ultra-ink); }
 
 .section-title {
-  font-size: clamp(28px, 3.6vw, 46px); line-height: 1.14;
+  font-size: clamp(28px, 5.4vw, 40px); line-height: 1.16;
   max-width: 20ch; margin-bottom: 60px;
 }
 .section-title em { font-style: normal; color: var(--ultra); }
@@ -184,18 +185,18 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 
 .hero-inner {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  display: flex; align-items: center;
-  padding: 0 clamp(20px, 5vw, 80px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: clamp(24px, 4vh, 52px) 28px 0;
   /* приглушаем инверсию: эффект остаётся, но перестаёт спорить с живописью */
   mix-blend-mode: difference;
-  opacity: 0.62;
+  opacity: 0.88;
 }
 
 .hero-title {
   font-family: var(--ui); font-weight: 800;
-  font-size: clamp(52px, 9.6vw, 156px); line-height: 0.9;
+  font-size: clamp(42px, 11vw, 92px); line-height: 0.94;
   letter-spacing: -0.035em; text-align: left; color: #fff;
-  max-width: 13ch;
+  width: 100%; max-width: 720px;
 }
 .accent { color: #fff; background: none; }
 
@@ -223,10 +224,10 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   position: relative; z-index: 2; background: var(--linen);
   padding: 56px 0 64px; border-bottom: 1px solid var(--rule);
 }
-.copy-inner { max-width: 760px; }
+.copy-inner { max-width: 100%; }
 
 .lede {
-  font-size: 19px; color: var(--text-soft); max-width: 640px;
+  font-size: 18px; color: var(--text-soft); max-width: 100%;
   margin-bottom: 36px; font-weight: 400;
 }
 
@@ -285,8 +286,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 .panel h3 { font-size: 22px; margin: 12px 0 12px; line-height: 1.25; }
 .panel p { color: var(--text-soft); font-size: 15.5px; font-weight: 400; }
 
-.problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
-.products-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.problem-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.products-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
 
 .panel.featured { background: var(--ultra-deep); }
 .panel.featured h3 { color: var(--linen-3); }
@@ -299,12 +300,6 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--ochre);
 }
 
-@media (max-width: 980px) {
-  .problem-grid, .products-grid { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 680px) {
-  .problem-grid, .products-grid { grid-template-columns: 1fr; }
-}
 
 /* ---------- процесс ---------- */
 
@@ -443,7 +438,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   .header-cta { padding: 9px 15px; font-size: 13px; }
 
   .hero { height: 76vh; min-height: 440px; }
-  .hero-title { font-size: clamp(42px, 14vw, 76px); max-width: 9ch; }
+  /* на телефоне заголовок встаёт вверху, живопись раскрывается под ним */
+  .hero-title { font-size: clamp(38px, 12vw, 64px); }
   .hero-copy { padding: 38px 0 44px; }
   .lede { font-size: 17px; margin-bottom: 32px; }
   .eyebrow { font-size: 11px; letter-spacing: 0.16em; margin-bottom: 16px; }
@@ -527,7 +523,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   border-bottom: 1px solid var(--rule); padding: 40px 0;
 }
 .trust-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px;
+  display: grid; grid-template-columns: 1fr; gap: 22px;
 }
 .trust-item { display: flex; flex-direction: column; gap: 8px; }
 .trust-key {
@@ -536,11 +532,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 }
 .trust-val { font-size: 14.5px; color: var(--text-soft); font-weight: 400; line-height: 1.5; }
 
-@media (max-width: 980px) { .trust-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .trust-grid { grid-template-columns: 1fr; gap: 20px; } }
 
 /* ---------- проводникам ---------- */
 
 .creators { background: var(--linen-2); border-top: 1px solid var(--rule); }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
-@media (max-width: 780px) { .grid-2 { grid-template-columns: 1fr; } }
+.grid-2 { display: grid; grid-template-columns: 1fr; gap: 20px; }

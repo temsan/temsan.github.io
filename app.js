@@ -771,7 +771,7 @@ function paintStroke(ctx, angleAt, x0, y0, cfg) {
     alpha = 0.5, color, relief = true,
   } = cfg;
 
-  const step = Math.max(2.5, Math.min(5, length / 14));
+  const step = Math.max(4, Math.min(11, length / 20));
   const pts = [];
   let x = x0, y = y0;
   // мазок начинается чуть раньше точки посева — кисть проходит сквозь неё
@@ -968,22 +968,22 @@ function createPainting(canvas, options = {}) {
      света — разбел. Изредка тёплый рефлекс, чтобы синее звучало.        */
   function colorFor(lum) {
     // редкий тёплый рефлекс — ровно столько, чтобы синее зазвучало
-    if (Math.random() < 0.035) {
-      return jitter({ h: 34 + Math.random() * 12, s: 46, l: 40 + lum * 34 }, 0.5);
+    if (Math.random() < 0.018) {
+      return jitter({ h: 36 + Math.random() * 8, s: 42, l: 44 + lum * 30 }, 0.35);
     }
     // узкий диапазон вокруг ультрамарина: мазки читаются как одна семья
     return jitter({
-      h: 226 + (Math.random() - 0.5) * 16,
-      s: 42 + (1 - lum) * 30,
-      l: 8 + lum * 78,
-    }, 0.45);
+      h: 226 + (Math.random() - 0.5) * 9,
+      s: 44 + (1 - lum) * 26,
+      l: 10 + lum * 74,
+    }, 0.25);
   }
 
   /* Мазок по натуре идёт прямо, вдоль линии равной светлоты: направление
      берём один раз в точке посева, дальше — лишь лёгкое дыхание кисти.  */
   function directedAngle(x0, y0) {
     let prev = null;
-    const MAX_TURN = 0.13;   // предел кривизны: лента не сворачивается в спираль
+    const MAX_TURN = 0.06;   // предел кривизны: лента идёт длинной плавной дугой
 
     return (x, y) => {
       const [gx, gy, mag] = field.gradientAt(x / w, y / h);
@@ -1009,11 +1009,11 @@ function createPainting(canvas, options = {}) {
      Отсюда умеренная длина и три калибра кисти.                        */
   const PASSES = [
     // длинные ленты ведут основной рисунок узора
-    { spacing: 12,  len: [110, 240], wid: [5, 11], minDetail: -1,   bristles: 3, relief: false },
+    { spacing: 8,   len: [180, 380], wid: [4, 9], minDetail: -1,   bristles: 3, relief: false },
     // средние подхватывают ход линий
-    { spacing: 8,   len: [60, 130],  wid: [3, 6.2], minDetail: 0.06, bristles: 2, relief: false },
+    { spacing: 5.5, len: [90, 190],  wid: [2.4, 5], minDetail: 0.06, bristles: 2, relief: false },
     // короткие расставляют акценты там, где узор сгущается
-    { spacing: 6.5, len: [26, 64],   wid: [2, 4], minDetail: 0.34,  bristles: 2, relief: false },
+    { spacing: 4.5, len: [40, 90],   wid: [1.6, 3.2], minDetail: 0.34,  bristles: 2, relief: false },
   ];
 
   function buildJobs() {
@@ -1055,7 +1055,7 @@ function createPainting(canvas, options = {}) {
 
     /* Страховка: стекло накладывается только после последнего мазка, поэтому
        живопись обязана завершиться. Лишние детальные мазки отбрасываем.     */
-    const CAP = 24000;
+    const CAP = 45000;
     if (jobs.length > CAP) jobs.length = CAP;
     return jobs;
   }
@@ -1090,7 +1090,7 @@ function createPainting(canvas, options = {}) {
   let jobs = null;
   let startedAt = 0;
   // на телефоне холст должен быть готов почти сразу: дальше он в руках человека
-  const PAINT_DEADLINE = window.innerWidth < 760 ? 1500 : 2600;
+  const PAINT_DEADLINE = window.innerWidth < 760 ? 1800 : 4200;
 
   // живопись дописана — опускаем стеклянную фигуру поверх неё
   function finish() {
