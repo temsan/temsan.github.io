@@ -168,7 +168,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 /* холст занимает весь экран, текст ему больше не мешает */
 .hero {
   position: relative; height: 92vh; min-height: 520px;
-  overflow: hidden; z-index: 2; background: #e7eefc;
+  overflow: hidden; z-index: 2; background: #101a4a;
 }
 
 /* pan-y оставляет вертикальную прокрутку странице,
@@ -206,10 +206,9 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 
 .hero-title .line { display: block; }
 
-/* Вычитание всегда затемняет светлую подложку, поэтому источник взят
-   очень тёмным: разность выходит малой, буквы остаются светлыми и лишь
-   слегка уходят от фона по цвету.                                     */
-.hero-title { color: #2b3854; }
+/* Подложка тёмная, поэтому вычитание её высветляет: буквы выходят
+   светлыми, а оттенок берут от того, что под ними.                   */
+.hero-title { color: #dfe6f5; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

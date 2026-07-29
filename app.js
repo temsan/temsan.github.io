@@ -226,7 +226,7 @@ function buildGalaxyField(w, h, { cx, cy, r, reach = 3.4 }) {
       const fade = smooth(0.6, reach, rad);
 
       const night = 0.13 + arms * 0.17 + turb * 0.06 + core * 0.95;
-      const L = night * (1 - fade) + 0.96 * fade;
+      const L = night * (1 - fade) + 0.2 * fade;
 
       const v = Math.min(255, Math.max(0, L * 255)) | 0;
       const i = (py * mw + pxi) * 4;
@@ -383,19 +383,19 @@ function paintStarfield(ctx, w, h, seed = 7) {
   const dim = Math.min(w, h);
 
   const star = (x, y, rad, warm, spikes) => {
-    const hue = warm ? 34 : 224;
+    const hue = warm ? 42 : 214;
     const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
-    halo.addColorStop(0, `hsla(${hue}, 62%, 46%, 0.3)`);
-    halo.addColorStop(1, `hsla(${hue}, 62%, 46%, 0)`);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
     ctx.fillStyle = halo;
     ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = `hsla(${hue}, 64%, 38%, 0.8)`;
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
     ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
 
     if (!spikes) return;
     // дифракционные лучи — подпись телескопа
-    ctx.strokeStyle = `hsla(${hue}, 60%, 44%, 0.34)`;
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
     ctx.lineWidth = Math.max(0.6, rad * 0.35);
     const L = rad * 13;
     ctx.beginPath();
@@ -409,7 +409,7 @@ function paintStarfield(ctx, w, h, seed = 7) {
   for (let i = 0; i < dust; i++) {
     const x = rnd() * w, y = rnd() * h;
     const a = 0.12 + rnd() * 0.5;
-    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 36 : 224}, 58%, 42%, ${a * 0.7})`;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
     ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
   }
 
@@ -428,9 +428,9 @@ function paintStarfield(ctx, w, h, seed = 7) {
     const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
 
     const tail = ctx.createLinearGradient(x, y, ex, ey);
-    tail.addColorStop(0, 'hsla(216, 70%, 42%, 0.5)');
-    tail.addColorStop(0.35, 'hsla(218, 62%, 50%, 0.2)');
-    tail.addColorStop(1, 'hsla(220, 60%, 56%, 0)');
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
     ctx.strokeStyle = tail;
     ctx.lineWidth = 1.6 + rnd() * 1.6;
     ctx.lineCap = 'round';
@@ -449,19 +449,19 @@ function paintStarfield(ctx, w, h, seed = 7) {
   const dim = Math.min(w, h);
 
   const star = (x, y, rad, warm, spikes) => {
-    const hue = warm ? 34 : 224;
+    const hue = warm ? 42 : 214;
     const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
-    halo.addColorStop(0, `hsla(${hue}, 62%, 46%, 0.3)`);
-    halo.addColorStop(1, `hsla(${hue}, 62%, 46%, 0)`);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
     ctx.fillStyle = halo;
     ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = `hsla(${hue}, 64%, 38%, 0.8)`;
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
     ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
 
     if (!spikes) return;
     // дифракционные лучи — подпись телескопа
-    ctx.strokeStyle = `hsla(${hue}, 60%, 44%, 0.34)`;
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
     ctx.lineWidth = Math.max(0.6, rad * 0.35);
     const L = rad * 13;
     ctx.beginPath();
@@ -475,7 +475,7 @@ function paintStarfield(ctx, w, h, seed = 7) {
   for (let i = 0; i < dust; i++) {
     const x = rnd() * w, y = rnd() * h;
     const a = 0.12 + rnd() * 0.5;
-    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 36 : 224}, 58%, 42%, ${a * 0.7})`;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
     ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
   }
 
@@ -494,9 +494,9 @@ function paintStarfield(ctx, w, h, seed = 7) {
     const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
 
     const tail = ctx.createLinearGradient(x, y, ex, ey);
-    tail.addColorStop(0, 'hsla(216, 70%, 42%, 0.5)');
-    tail.addColorStop(0.35, 'hsla(218, 62%, 50%, 0.2)');
-    tail.addColorStop(1, 'hsla(220, 60%, 56%, 0)');
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
     ctx.strokeStyle = tail;
     ctx.lineWidth = 1.6 + rnd() * 1.6;
     ctx.lineCap = 'round';
@@ -519,19 +519,19 @@ function paintStarfield(ctx, w, h, seed = 7) {
   const dim = Math.min(w, h);
 
   const star = (x, y, rad, warm, spikes) => {
-    const hue = warm ? 34 : 224;
+    const hue = warm ? 42 : 214;
     const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
-    halo.addColorStop(0, `hsla(${hue}, 62%, 46%, 0.3)`);
-    halo.addColorStop(1, `hsla(${hue}, 62%, 46%, 0)`);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
     ctx.fillStyle = halo;
     ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = `hsla(${hue}, 64%, 38%, 0.8)`;
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
     ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
 
     if (!spikes) return;
     // дифракционные лучи — подпись телескопа
-    ctx.strokeStyle = `hsla(${hue}, 60%, 44%, 0.34)`;
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
     ctx.lineWidth = Math.max(0.6, rad * 0.35);
     const L = rad * 13;
     ctx.beginPath();
@@ -545,7 +545,7 @@ function paintStarfield(ctx, w, h, seed = 7) {
   for (let i = 0; i < dust; i++) {
     const x = rnd() * w, y = rnd() * h;
     const a = 0.12 + rnd() * 0.5;
-    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 36 : 224}, 58%, 42%, ${a * 0.7})`;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
     ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
   }
 
@@ -564,9 +564,9 @@ function paintStarfield(ctx, w, h, seed = 7) {
     const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
 
     const tail = ctx.createLinearGradient(x, y, ex, ey);
-    tail.addColorStop(0, 'hsla(216, 70%, 42%, 0.5)');
-    tail.addColorStop(0.35, 'hsla(218, 62%, 50%, 0.2)');
-    tail.addColorStop(1, 'hsla(220, 60%, 56%, 0)');
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
     ctx.strokeStyle = tail;
     ctx.lineWidth = 1.6 + rnd() * 1.6;
     ctx.lineCap = 'round';
@@ -585,19 +585,19 @@ function paintStarfield(ctx, w, h, seed = 7) {
   const dim = Math.min(w, h);
 
   const star = (x, y, rad, warm, spikes) => {
-    const hue = warm ? 34 : 224;
+    const hue = warm ? 42 : 214;
     const halo = ctx.createRadialGradient(x, y, 0, x, y, rad * 7);
-    halo.addColorStop(0, `hsla(${hue}, 62%, 46%, 0.3)`);
-    halo.addColorStop(1, `hsla(${hue}, 62%, 46%, 0)`);
+    halo.addColorStop(0, `hsla(${hue}, 70%, 92%, 0.55)`);
+    halo.addColorStop(1, `hsla(${hue}, 70%, 92%, 0)`);
     ctx.fillStyle = halo;
     ctx.beginPath(); ctx.arc(x, y, rad * 7, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = `hsla(${hue}, 64%, 38%, 0.8)`;
+    ctx.fillStyle = `hsla(${hue}, 60%, 97%, 0.95)`;
     ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
 
     if (!spikes) return;
     // дифракционные лучи — подпись телескопа
-    ctx.strokeStyle = `hsla(${hue}, 60%, 44%, 0.34)`;
+    ctx.strokeStyle = `hsla(${hue}, 65%, 95%, 0.5)`;
     ctx.lineWidth = Math.max(0.6, rad * 0.35);
     const L = rad * 13;
     ctx.beginPath();
@@ -611,7 +611,7 @@ function paintStarfield(ctx, w, h, seed = 7) {
   for (let i = 0; i < dust; i++) {
     const x = rnd() * w, y = rnd() * h;
     const a = 0.12 + rnd() * 0.5;
-    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 36 : 224}, 58%, 42%, ${a * 0.7})`;
+    ctx.fillStyle = `hsla(${rnd() > 0.88 ? 44 : 212}, 55%, 94%, ${a})`;
     ctx.beginPath(); ctx.arc(x, y, rnd() * 0.9 + 0.35, 0, Math.PI * 2); ctx.fill();
   }
 
@@ -630,9 +630,9 @@ function paintStarfield(ctx, w, h, seed = 7) {
     const ex = x - Math.cos(ang) * len, ey = y - Math.sin(ang) * len;
 
     const tail = ctx.createLinearGradient(x, y, ex, ey);
-    tail.addColorStop(0, 'hsla(216, 70%, 42%, 0.5)');
-    tail.addColorStop(0.35, 'hsla(218, 62%, 50%, 0.2)');
-    tail.addColorStop(1, 'hsla(220, 60%, 56%, 0)');
+    tail.addColorStop(0, 'hsla(206, 80%, 92%, 0.72)');
+    tail.addColorStop(0.35, 'hsla(214, 70%, 86%, 0.28)');
+    tail.addColorStop(1, 'hsla(220, 60%, 80%, 0)');
     ctx.strokeStyle = tail;
     ctx.lineWidth = 1.6 + rnd() * 1.6;
     ctx.lineCap = 'round';
@@ -969,14 +969,13 @@ function createPainting(canvas, options = {}) {
   function colorFor(lum) {
     // редкий тёплый рефлекс — ровно столько, чтобы синее зазвучало
     if (Math.random() < 0.018) {
-      return jitter({ h: 36 + Math.random() * 8, s: 44, l: 52 - lum * 14 }, 0.35);
+      return jitter({ h: 36 + Math.random() * 8, s: 42, l: 44 + lum * 30 }, 0.35);
     }
-    /* Холст светлый, поэтому мазок тем темнее, чем гуще поток: светлые
-       участки поля остаются воздухом, плотные становятся ультрамарином. */
+    // узкий диапазон вокруг ультрамарина: мазки читаются как одна семья
     return jitter({
       h: 226 + (Math.random() - 0.5) * 9,
-      s: 46 + (1 - lum) * 24,
-      l: 30 + lum * 40,
+      s: 44 + (1 - lum) * 26,
+      l: 10 + lum * 74,
     }, 0.25);
   }
 
@@ -1467,23 +1466,23 @@ function loadImage(src) {
   const underpaint = (geom) => (ctx, w, h) => {
     const { cx, cy, r, reach } = geom(w, h);
 
-    ctx.fillStyle = '#eaf0fd';
+    ctx.fillStyle = '#101a4a';
     ctx.fillRect(0, 0, w, h);
 
-    const sky = ctx.createRadialGradient(cx, cy, r * 0.08, cx, cy, r * reach);
-    sky.addColorStop(0.00, 'rgba(255, 255, 255, 0.9)');
-    sky.addColorStop(0.34, 'rgba(206, 224, 252, 0.6)');
-    sky.addColorStop(0.7, 'rgba(150, 182, 240, 0.3)');
-    sky.addColorStop(1.00, 'rgba(150, 182, 240, 0)');
+    const sky = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * reach);
+    sky.addColorStop(0.00, 'rgba(18, 28, 84, 0.95)');
+    sky.addColorStop(0.30, 'rgba(20, 32, 94, 0.9)');
+    sky.addColorStop(0.62, 'rgba(31, 53, 168, 0.4)');
+    sky.addColorStop(1.00, 'rgba(31, 53, 168, 0)');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
-    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.55);
-    core.addColorStop(0.00, 'rgba(255, 255, 255, 1)');
-    core.addColorStop(0.36, 'rgba(244, 249, 255, 0.7)');
-    core.addColorStop(1.00, 'rgba(214, 232, 255, 0)');
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.5);
+    core.addColorStop(0.00, 'rgba(248, 246, 236, 0.95)');
+    core.addColorStop(0.28, 'rgba(200, 216, 246, 0.55)');
+    core.addColorStop(1.00, 'rgba(150, 180, 235, 0)');
     ctx.fillStyle = core;
-    ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.fill();
   };
 
   const hero = document.getElementById('paint-hero');
