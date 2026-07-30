@@ -578,7 +578,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 
 .case-lede {
   max-width: 58ch; margin: -34px 0 46px;
-  font-size: 17.5px; line-height: 1.62; font-weight: 300;
+  font-size: 17.5px; line-height: 1.62; font-weight: 400;
   color: rgba(239, 233, 220, 0.78);
 }
 

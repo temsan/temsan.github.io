@@ -1460,7 +1460,7 @@ function loadImage(src) {
   });
 }
 
-(function initScenes() {
+function initScenes() {
   /* Тонировка холста: свет и голубой ультрамарин. Дальше кисть пишет
      потоки, стекающиеся в ядро. */
   const underpaint = (geom) => (ctx, w, h) => {
@@ -1522,7 +1522,17 @@ function loadImage(src) {
       overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 4071),
     }).start();
   }
-})();
+}
+
+/* Живопись тяжёлая: если запустить её сразу, она соперничает с первой
+   отрисовкой страницы и портит мобильные метрики. Ждём, пока браузер
+   покажет разметку, и пишем в простое — с потолком по времени, чтобы
+   на занятом устройстве холст всё равно появился. */
+if ('requestIdleCallback' in window) {
+  requestIdleCallback(initScenes, { timeout: 1200 });
+} else {
+  setTimeout(initScenes, 200);
+}
 
 /* ---------- Уход на самый верх ----------
    Якорь #top упирается в липкую шапку и не докручивает страницу до конца,
