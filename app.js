@@ -1534,6 +1534,48 @@ if ('requestIdleCallback' in window) {
   setTimeout(initScenes, 200);
 }
 
+/* ---------- Вкладки кейсов ----------
+   Скрытая панель невидима для наблюдателя появления, поэтому её содержимое
+   так и осталось бы прозрачным. При открытии показываем всё сразу. */
+
+(function caseTabs() {
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  if (!tabs.length) return;
+
+  const show = (tab) => {
+    tabs.forEach((t) => {
+      const on = t === tab;
+      const panel = document.getElementById(t.getAttribute('aria-controls'));
+      t.classList.toggle('is-active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      if (!panel) return;
+      panel.hidden = !on;
+      if (on) panel.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
+    });
+  };
+
+  // ссылки подменю ведут в секцию и сразу открывают свой кейс
+  document.querySelectorAll('.nav-sub a[data-tab]').forEach((link) => {
+    link.addEventListener('click', () => {
+      const tab = document.getElementById(link.dataset.tab);
+      if (tab) show(tab);
+    });
+  });
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => show(tab));
+    tab.addEventListener('keydown', (e) => {
+      const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!step) return;
+      e.preventDefault();
+      const next = tabs[(i + step + tabs.length) % tabs.length];
+      next.focus();
+      show(next);
+    });
+  });
+})();
+
 /* ---------- Уход на самый верх ----------
    Якорь #top упирается в липкую шапку и не докручивает страницу до конца,
    поэтому имя и ссылка «Наверх» скроллят к нулю напрямую и без анимации. */
@@ -1879,7 +1921,7 @@ const INK_MODE = 'screen';
 /* ---------- Активный раздел ---------- */
 
 (function navHighlight() {
-  const links = [...document.querySelectorAll('.main-nav a')];
+  const links = [...document.querySelectorAll('.main-nav > a, .main-nav > .nav-item > a')];
   const targets = links
     .map((a) => document.querySelector(a.getAttribute('href')))
     .filter(Boolean);
