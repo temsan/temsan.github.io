@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=51">
+<link rel="stylesheet" href="styles.css?v=59">
 </head>
 <body>
 
@@ -50,6 +50,7 @@
     <nav class="main-nav">
       <a href="#problem">Проблема</a>
       <a href="#process">Процесс</a>
+      <a href="#case">Кейс</a>
       <a href="#products">Продукты</a>
       <a href="#faq">Вопросы</a>
     </nav>
@@ -196,6 +197,69 @@
     </div>
   </section>
 
+  <!-- КЕЙС -->
+  <section id="case" class="section case">
+    <div class="wrap">
+      <p class="eyebrow" data-reveal>Кейс из практики</p>
+      <h2 class="section-title" data-reveal>Метод автора, <em>работающий без автора</em></h2>
+      <p class="case-lede" data-reveal>
+        Онлайн-школа трансформационных практик: годы живых разборов в Telegram,
+        линейка от входного продукта до 12-недельной программы с наставником.
+        Система собрана под ключ и работает в продакшене.
+      </p>
+
+      <div class="case-facts" data-reveal>
+        <div class="case-fact"><b>9</b><span>техник вмешательства, извлечённых из живых диалогов</span></div>
+        <div class="case-fact"><b>6</b><span>состояний собеседника, которые система различает</span></div>
+        <div class="case-fact"><b>9</b><span>этапов пути — от первого сообщения до покупки</span></div>
+        <div class="case-fact"><b>23K</b><span>строк кода: диалог, задания, оплата, аналитика</span></div>
+      </div>
+
+      <div class="case-grid">
+        <article class="panel" data-reveal style="--rd:0">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">01 · Задача</span>
+          <h3>Весь путь клиента шёл через одного человека</h3>
+          <p>Автор сама вела диалоги, сама чувствовала, кто дозрел до программы, сама решала, что предложить. Аудитория росла быстрее, чем один человек успевает отвечать.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:1">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">02 · Сложность</span>
+          <h3>Вежливый ассистент здесь ломает метод</h3>
+          <p>Метод построен на точности вмешательства. Языковая модель по умолчанию сглаживает и соглашается — то есть гасит ровно то напряжение, на котором метод держится. Копировать стиль было недостаточно.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:2">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">03 · Исследование</span>
+          <h3>Источником стали не тексты, а диалоги</h3>
+          <p>Переписки с цепочками ответов показывают, на какую именно реплику автор отреагировала и как. Из них собрана читаемая модель: техники, состояния собеседника и вопросы с указанием, что каждый вскрывает.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:3">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">04 · Модель</span>
+          <h3>Промпт решает что, дообучение — как это звучит</h3>
+          <p>Инструкция задаёт выбор вмешательства, но не даёт интонации: паузы, резкости, права промолчать. Поэтому поверх слоя выбора модель дообучена на живых диалогах автора. Порознь не работает: дообучение без выбора бьёт мимо момента, промпт без дообучения говорит голосом вежливого ассистента.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:4">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">05 · Система</span>
+          <h3>Этап пути решает, что произойдёт дальше</h3>
+          <p>Диагностическая беседа определяет этап, а он задаёт остальное: какое задание выдать, какой продукт уместен и когда лучше промолчать. Сверху — проверка заданий, возвращающие касания, оплата и аналитика.</p>
+        </article>
+        <article class="panel case-result" data-reveal style="--rd:5">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="badge">Результат</span>
+          <h3>Автор осталась там, где незаменима</h3>
+          <p>Система ведёт диалог методом автора, определяет готовность к следующему шагу и предлагает продукт тогда, когда он уместен. За автором — правка модели и глубокая работа. Снят с неё поток одинаковых первых разговоров.</p>
+        </article>
+      </div>
+
+      <p class="case-note" data-reveal>
+        Кейс обезличен: имя автора, название школы и продуктов не раскрываются по условиям NDA.
+      </p>
+    </div>
+  </section>
+
   <!-- AUDIENCE -->
   <section class="section audience">
     <div class="wrap">
@@ -333,6 +397,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=51" defer></script>
+<script src="app.js?v=59" defer></script>
 </body>
 </html>

@@ -80,7 +80,13 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--rule);
 }
 
-.header-row { display: flex; align-items: center; justify-content: space-between; height: 78px; }
+/* шапке тесно в колонке чтения: пунктов больше, чем помещается в 720px,
+   поэтому здесь полоса шире — логотип уходит левее текстовой колонки */
+.site-header .wrap { max-width: 900px; }
+.header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 30px; height: 78px;
+}
 
 .brand { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; }
 .brand-blot {
@@ -94,7 +100,7 @@ a { color: inherit; text-decoration: none; }
   50% { border-radius: 44% 56% 58% 42% / 56% 44% 56% 44%; transform: rotate(8deg) scale(1.06); }
 }
 
-.main-nav { display: flex; gap: 36px; font-family: var(--ui); font-size: 14px; color: var(--text-soft); }
+.main-nav { display: flex; gap: 30px; white-space: nowrap; font-family: var(--ui); font-size: 14px; color: var(--text-soft); }
 .main-nav a { position: relative; padding: 5px 0; transition: color 0.3s var(--ease); }
 .main-nav a::after {
   content: ''; position: absolute; left: -3px; right: -3px; bottom: 0; height: 5px;
@@ -179,10 +185,11 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 }
 #paint-hero { width: 100%; height: 100%; display: block; }
 
-/* Буквы вычитаются из живописи, поэтому их цвет всегда считается от
-   подложки. Источник взят тёмным и малонасыщенным: вычитание выходит
-   небольшим, буквы уходят от фона на шаг по кругу и темнеют настолько,
-   чтобы читаться, — без выкрученных цветов.                          */
+/* Буквы заполнены самой живописью, попиксельно: копия холста, у которой
+   инвертирована светлота (иначе текст не читается) и повёрнут тон —
+   но не на пол-круга, как у чистого вычитания, а на долю поменьше
+   (см. HUE_SHIFT в app.js). Фактура мазка внутри букв сохраняется.
+   Если canvas-фильтры недоступны, остаётся вычитание из разметки ниже. */
 .hero { isolation: isolate; }
 
 .hero-inner {
@@ -191,6 +198,14 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   padding: clamp(24px, 4vh, 52px) 28px 0;
   mix-blend-mode: difference;
   opacity: 0.82;
+}
+
+/* режим со сдвигом тона: буквы рисует холст, разметка держит смысл */
+.hero.ink-canvas .hero-inner { mix-blend-mode: normal; opacity: 1; }
+.hero.ink-canvas .hero-title { color: transparent; }
+.hero-ink {
+  position: absolute; inset: 0; z-index: 3;
+  width: 100%; height: 100%; pointer-events: none;
 }
 
 .hero-title {
@@ -206,8 +221,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 
 .hero-title .line { display: block; }
 
-/* Подложка тёмная, поэтому вычитание её высветляет: буквы выходят
-   светлыми, а оттенок берут от того, что под ними.                   */
+/* Источник для вычитания в запасном режиме */
 .hero-title { color: #dfe6f5; }
 
 .sr-only {
@@ -475,6 +489,11 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
   .tag { font-size: 13px; padding: 11px 18px; }
   .marquee-track { font-size: 11.5px; gap: 22px; }
 
+  .case-lede { font-size: 16.5px; margin: -22px 0 36px; }
+  .case-facts { gap: 16px; margin-bottom: 36px; padding-bottom: 32px; }
+  .case-fact b { font-size: 27px; }
+  .case-fact span { font-size: 14.5px; }
+
   .faq-item { padding: 20px 2px; }
   .faq-item summary { font-size: 18px; gap: 14px; }
   .faq-item summary::after { width: 16px; height: 16px; }
@@ -547,3 +566,48 @@ h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.0
 
 .creators { background: var(--linen-2); border-top: 1px solid var(--rule); }
 .grid-2 { display: grid; grid-template-columns: 1fr; gap: 20px; }
+
+
+/* ---------- кейс ---------- */
+
+/* тёмная полоса: доказательство отделено от объяснений */
+.case { background: var(--ultra-deep); }
+.case .eyebrow { color: var(--ochre); }
+.case .section-title { color: var(--linen-3); }
+.case .section-title em { color: var(--pale); }
+
+.case-lede {
+  max-width: 58ch; margin: -34px 0 46px;
+  font-size: 17.5px; line-height: 1.62; font-weight: 300;
+  color: rgba(239, 233, 220, 0.78);
+}
+
+.case-facts {
+  display: grid; grid-template-columns: 1fr; gap: 18px;
+  margin-bottom: 44px; padding-bottom: 40px;
+  border-bottom: 1px solid rgba(239, 233, 220, 0.18);
+}
+.case-fact { display: flex; align-items: baseline; gap: 16px; }
+.case-fact b {
+  flex: none; min-width: 2.4ch;
+  font-family: var(--display); font-size: 32px; font-weight: 600;
+  letter-spacing: -0.03em; line-height: 1; color: var(--ochre);
+}
+.case-fact span {
+  font-size: 15px; font-weight: 400; line-height: 1.45;
+  color: rgba(239, 233, 220, 0.7);
+}
+
+.case-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+
+/* итоговая панель: охристый край вместо ультрамаринового */
+.case-result .panel-edge {
+  background: linear-gradient(90deg, var(--ochre), var(--sienna));
+  transform: scaleX(1);
+}
+.case-result .badge { color: var(--sienna); margin-bottom: 2px; }
+
+.case-note {
+  margin-top: 34px; font-size: 13.5px; font-weight: 400; line-height: 1.5;
+  color: rgba(239, 233, 220, 0.5);
+}

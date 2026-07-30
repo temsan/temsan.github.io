@@ -1505,6 +1505,7 @@ function loadImage(src) {
       underpaint: underpaint(geom),
       makeField: (w, h) => buildGalaxyField(w, h, geom(w, h)),
       overlay: (ctx, w, h) => paintStarfield(ctx, w, h, 20260726),
+      onPaint: () => window.__retintHeadline?.(),
     }).start();
   }
 
@@ -1579,6 +1580,292 @@ function loadImage(src) {
   update();
 })();
 
+/* ---------- Буквы, залитые живописью ----------
+   Вычитание (difference) работает попиксельно — потому в буквах и жила
+   фактура мазка. Но вычитание жёстко задаёт пол-круга по тону: над
+   ультрамарином буквы неизбежно охристые, повлиять на это нельзя.
+
+   Здесь то же самое, но управляемо: берётся копия холста, у неё
+   поворачивается тон на заданную долю круга и правится светлота, а затем
+   всё это обрезается по контуру букв. Фактура остаётся, тон — на выбор.
+
+   HUE_SHIFT — доля круга (1/2 — та же инверсия, 1/6 — родственный тон).
+   INK_MODE  — как краска ложится на холст:
+     'invert'   — светлота вывернута, буквы светятся (ближе к прежнему);
+     'multiply' — умножение, буквы уходят в глубокий тон холста;
+     'screen'   — осветление, буквы дымчатые.
+   Оба параметра меняются вживую: data-hue-shift и data-ink-mode на <html>. */
+
+const HUE_SHIFT = 0;          // подобрано вживую: тон холста без поворота
+const INK_MODE = 'screen';
+
+(function inkHeadline() {
+  const hero = document.querySelector('.hero');
+  const paint = document.getElementById('paint-hero');
+  const title = document.querySelector('.hero-title');
+  const lines = [...document.querySelectorAll('.hero-title .line')];
+  if (!hero || !paint || !title || !lines.length) return;
+
+  const ink = document.createElement('canvas');
+  const ictx = ink.getContext('2d', { willReadFrequently: true });
+  // без canvas-фильтров затея не работает — остаёмся на вычитании
+  if (!ictx || typeof ictx.filter !== 'string') return;
+
+  ink.className = 'hero-ink';
+  ink.setAttribute('aria-hidden', 'true');
+  hero.appendChild(ink);
+  hero.classList.add('ink-canvas');
+
+  const mask = document.createElement('canvas');
+  const mctx = mask.getContext('2d');
+
+  // светлота решает читаемость, поэтому у каждого режима она своя
+  const MODES = {
+    invert: { lum: (l) => 1 - l, sat: 1.0, blend: 'normal' },
+    multiply: { lum: (l) => 0.5 + (1 - l) * 0.55, sat: 1.15, blend: 'multiply' },
+    screen: { lum: (l) => (1 - l) * 0.55, sat: 1.1, blend: 'screen' },
+  };
+
+  // живые параметры: ими правит панель настройки (?tune)
+  const settings = {
+    shift: parseFloat(document.documentElement.dataset.hueShift) || HUE_SHIFT,
+    mode: document.documentElement.dataset.inkMode || INK_MODE,
+    sat: 0.95,     // множитель насыщенности
+    lift: -0.1,    // сдвиг светлоты
+    contrast: 0.2, // растяжка светлоты вокруг середины: почти ровный тон
+    alpha: 1,      // прозрачность слоя
+  };
+
+  function hslToRgb(h, s, l) {
+    if (!s) { const v = l * 255; return [v, v, v]; }
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const k = (t) => {
+      if (t < 0) t += 1; else if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    return [k(h + 1 / 3) * 255, k(h) * 255, k(h - 1 / 3) * 255];
+  }
+
+  /* Честный поворот по цветовому кругу: canvas-фильтр hue-rotate —
+     линейная матрица, на насыщенных цветах она уводит тон и гасит цвет. */
+  function shiftPixels(img, turn, mode) {
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const l = (max + min) / 2;
+      const delta = max - min;
+
+      let h = 0, s = 0;
+      if (delta) {
+        s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+        if (max === r) h = ((g - b) / delta + (g < b ? 6 : 0)) / 6;
+        else if (max === g) h = ((b - r) / delta + 2) / 6;
+        else h = ((r - g) / delta + 4) / 6;
+      }
+
+      let v = mode.lum(l);
+      v = 0.5 + (v - 0.5) * settings.contrast + settings.lift;
+
+      const [nr, ng, nb] = hslToRgb(
+        (h + turn + 1) % 1,
+        Math.min(1, s * mode.sat * settings.sat),
+        Math.min(1, Math.max(0, v)),
+      );
+      d[i] = nr; d[i + 1] = ng; d[i + 2] = nb;
+    }
+  }
+
+  function draw() {
+    const box = hero.getBoundingClientRect();
+    if (!box.width || !box.height) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const W = Math.round(box.width * dpr);
+    const H = Math.round(box.height * dpr);
+    if (ink.width !== W || ink.height !== H) { ink.width = W; ink.height = H; }
+
+    const shift = settings.shift;
+    const mode = MODES[settings.mode] || MODES.invert;
+
+    ictx.setTransform(1, 0, 0, 1, 0, 0);
+    ictx.clearRect(0, 0, W, H);
+
+    // 1. копия живописи
+    ictx.drawImage(paint, 0, 0, W, H);
+
+    // 2. поворот тона — только там, где стоят буквы: считать весь экран незачем
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    lines.forEach((line) => {
+      const r = line.getBoundingClientRect();
+      x0 = Math.min(x0, r.left - box.left); x1 = Math.max(x1, r.right - box.left);
+      y0 = Math.min(y0, r.top - box.top);   y1 = Math.max(y1, r.bottom - box.top);
+    });
+    const bx = Math.max(0, Math.floor(x0 * dpr) - 2);
+    const by = Math.max(0, Math.floor(y0 * dpr) - 2);
+    const bw = Math.min(W - bx, Math.ceil((x1 - x0) * dpr) + 4);
+    const bh = Math.min(H - by, Math.ceil((y1 - y0) * dpr) + 4);
+    if (bw > 1 && bh > 1) {
+      const img = ictx.getImageData(bx, by, bw, bh);
+      shiftPixels(img, shift, mode);
+      ictx.putImageData(img, bx, by);
+    }
+
+    // 3. маска из букв — все строки разом: destination-in режет на каждый
+    //    вызов, и последовательные строки дали бы пустое пересечение
+    if (mask.width !== W || mask.height !== H) { mask.width = W; mask.height = H; }
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.clearRect(0, 0, W, H);
+    mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mctx.fillStyle = '#000';
+    mctx.textAlign = 'right';
+    mctx.textBaseline = 'middle';
+
+    const cs = getComputedStyle(title);
+    mctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    if ('letterSpacing' in mctx) mctx.letterSpacing = cs.letterSpacing;
+
+    lines.forEach((line) => {
+      const r = line.getBoundingClientRect();
+      mctx.fillText(
+        line.textContent.toUpperCase(),
+        r.right - box.left,
+        r.top - box.top + r.height / 2,
+      );
+    });
+
+    // 4. обрезаем живопись по маске
+    ictx.setTransform(1, 0, 0, 1, 0, 0);
+    ictx.globalCompositeOperation = 'destination-in';
+    ictx.drawImage(mask, 0, 0);
+    ictx.globalCompositeOperation = 'source-over';
+    ink.style.mixBlendMode = mode.blend;
+    ink.style.opacity = settings.alpha;
+  }
+
+  let queued = false;
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; draw(); });
+  }
+
+  window.__retintHeadline = schedule;   // холст зовёт сюда, когда дописан
+  window.__ink = { settings, modes: Object.keys(MODES), redraw: schedule };
+  window.addEventListener('resize', schedule);
+  if (document.fonts) document.fonts.ready.then(schedule);
+
+  // кисть переписывает холст под курсором — заливка догоняет
+  let last = 0;
+  paint.addEventListener('pointermove', () => {
+    const now = performance.now();
+    if (now - last < 120) return;
+    last = now;
+    schedule();
+  }, { passive: true });
+
+  schedule();
+})();
+
+/* ---------- ВРЕМЕННОЕ: панель настройки заголовка ----------
+   Включается только адресом ?tune — на обычной странице её нет.
+   Когда значения устроят, панель удаляется целиком, а числа
+   переносятся в HUE_SHIFT / INK_MODE и в settings выше.        */
+
+(function tunePanel() {
+  if (!/[?&]tune\b/.test(location.search)) return;
+  const ink = window.__ink;
+  if (!ink) return;
+
+  const FIELDS = [
+    // крутим в градусах: доля круга дробная, ползунок на ней врёт шагом
+    {
+      key: 'shift', label: 'Сдвиг тона', min: 0, max: 180, step: 1,
+      get: (v) => v * 360, set: (deg) => deg / 360,
+      fmt: (v) => (v > 0.001 ? `${Math.round(v * 360)}°  ·  1/${(1 / v).toFixed(1)}` : '0°  ·  в тон'),
+    },
+    { key: 'sat', label: 'Насыщенность', min: 0, max: 2, step: 0.05 },
+    { key: 'lift', label: 'Светлота', min: -0.4, max: 0.4, step: 0.02 },
+    { key: 'contrast', label: 'Контраст', min: 0.2, max: 2.2, step: 0.05 },
+    { key: 'alpha', label: 'Прозрачность', min: 0.2, max: 1, step: 0.02 },
+  ];
+
+  const box = document.createElement('div');
+  box.style.cssText = `
+    position: fixed; right: 18px; bottom: 18px; z-index: 999;
+    width: 260px; padding: 16px 16px 14px;
+    background: rgba(13, 20, 64, 0.92); color: #eee9dc;
+    font: 12px/1.4 system-ui, sans-serif; border-radius: 10px;
+    box-shadow: 0 18px 40px -18px rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+  `;
+
+  const head = document.createElement('div');
+  head.textContent = 'Заголовок над холстом';
+  head.style.cssText = 'font-weight:600;margin-bottom:12px;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;opacity:.75';
+  box.appendChild(head);
+
+  // режим наложения
+  const modeRow = document.createElement('div');
+  modeRow.style.cssText = 'display:flex;gap:6px;margin-bottom:14px';
+  ink.modes.forEach((m) => {
+    const b = document.createElement('button');
+    b.textContent = m;
+    b.style.cssText = 'flex:1;padding:6px 4px;border:1px solid rgba(238,233,220,.25);background:none;color:inherit;border-radius:6px;cursor:pointer;font:inherit';
+    b.onclick = () => {
+      ink.settings.mode = m;
+      [...modeRow.children].forEach((c) => { c.style.background = 'none'; });
+      b.style.background = 'rgba(217,164,65,.35)';
+      ink.redraw(); dump();
+    };
+    if (m === ink.settings.mode) b.style.background = 'rgba(217,164,65,.35)';
+    modeRow.appendChild(b);
+  });
+  box.appendChild(modeRow);
+
+  const out = document.createElement('code');
+  out.style.cssText = 'display:block;margin-top:12px;padding-top:10px;border-top:1px solid rgba(238,233,220,.18);font-size:10.5px;line-height:1.6;opacity:.8;word-break:break-all';
+
+  function dump() {
+    const s = ink.settings;
+    out.textContent = `mode:'${s.mode}' shift:${s.shift.toFixed(4)} sat:${s.sat.toFixed(2)} lift:${s.lift.toFixed(2)} contrast:${s.contrast.toFixed(2)} alpha:${s.alpha.toFixed(2)}`;
+  }
+
+  FIELDS.forEach((f) => {
+    const row = document.createElement('label');
+    row.style.cssText = 'display:block;margin-bottom:10px';
+    const cap = document.createElement('span');
+    cap.style.cssText = 'display:flex;justify-content:space-between;margin-bottom:3px;opacity:.8';
+    const val = document.createElement('b');
+    const set = () => {
+      val.textContent = f.fmt ? f.fmt(ink.settings[f.key]) : ink.settings[f.key].toFixed(2);
+    };
+    cap.append(Object.assign(document.createElement('span'), { textContent: f.label }), val);
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = f.min; input.max = f.max; input.step = f.step;
+    input.value = f.get ? f.get(ink.settings[f.key]) : ink.settings[f.key];
+    input.style.cssText = 'width:100%;accent-color:#d9a441';
+    input.oninput = () => {
+      const raw = parseFloat(input.value);
+      ink.settings[f.key] = f.set ? f.set(raw) : raw;
+      set(); ink.redraw(); dump();
+    };
+
+    set();
+    row.append(cap, input);
+    box.appendChild(row);
+  });
+
+  box.appendChild(out);
+  dump();
+  document.body.appendChild(box);
+})();
+
 /* ---------- Активный раздел ---------- */
 
 (function navHighlight() {
@@ -1595,7 +1882,9 @@ function loadImage(src) {
       const active = links.find((l) => l.getAttribute('href') === `#${entry.target.id}`);
       if (active) active.classList.add('is-active');
     });
-  }, { threshold: 0.3, rootMargin: '-90px 0px -40% 0px' });
+    // узкая полоса по центру экрана: активна секция, которая её пересекает.
+    // порог по доле высоты не годится — высокие секции его не набирают
+  }, { threshold: 0, rootMargin: '-49% 0px -49% 0px' });
 
   targets.forEach((t) => io.observe(t));
 })();
