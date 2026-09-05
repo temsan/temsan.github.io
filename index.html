@@ -24,20 +24,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=64">
+<link rel="stylesheet" href="styles.css?v=76">
 </head>
 <body>
 
-<!-- Фильтры: рваные края краски и текстура холста -->
+<!-- Фильтры: мокрый акварельный край и текстура холста.
+     Тот же приём (feTurbulence + feDisplacementMap), что и раньше для
+     рваной бумаги, но меньше октав — контур плавнее, шире displacement —
+     мягче и крупнее «бег» разводов, вместо рваной кромки. -->
 <svg class="svg-defs" aria-hidden="true">
   <defs>
     <filter id="paintEdge">
-      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="4" seed="7" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
     <filter id="paintEdgeFine">
-      <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="3" seed="3" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="8" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
   </defs>
 </svg>
@@ -59,6 +62,7 @@
         <span class="nav-sub">
           <a href="#case" data-tab="tab-path">Путь клиента</a>
           <a href="#case" data-tab="tab-voice">Голос автора</a>
+          <a href="#case" data-tab="tab-own">Свои проекты</a>
         </span>
       </span>
       <a href="#products">Продукты</a>
@@ -74,7 +78,7 @@
   <section class="hero">
     <div class="paint-host">
       <canvas id="paint-hero" role="img"
-              aria-label="Написанная мазками луна в ультрамариновой ночи"></canvas>
+              aria-label="Акварельные разводы и течения в глубокой воде"></canvas>
     </div>
     <div class="hero-inner">
       <h1 class="hero-title">
@@ -86,8 +90,8 @@
     </div>
     <p class="hero-hint stagger" style="--d:4">
       <span class="hint-brush"></span>
-      <span class="hint-mouse">ведите курсором — картина пишется под рукой</span>
-      <span class="hint-touch">проведите пальцем — картина пишется под рукой</span>
+      <span class="hint-mouse">ведите курсором — вода расходится кругами</span>
+      <span class="hint-touch">коснитесь — вода расходится кругами</span>
     </p>
   </section>
 
@@ -218,6 +222,8 @@
                 aria-controls="panel-path" aria-selected="true">Путь клиента</button>
         <button class="tab" role="tab" id="tab-voice"
                 aria-controls="panel-voice" aria-selected="false" tabindex="-1">Голос автора</button>
+        <button class="tab" role="tab" id="tab-own"
+                aria-controls="panel-own" aria-selected="false" tabindex="-1">Свои проекты</button>
       </div>
 
       <div class="tab-panel" id="panel-path" role="tabpanel" aria-labelledby="tab-path">
@@ -331,7 +337,55 @@
       <p class="case-note" data-reveal>
         Кейс обезличен: имя автора и названия площадок не раскрываются по условиям NDA.
       </p>
-    
+
+      </div>
+
+      <div class="tab-panel" id="panel-own" role="tabpanel" aria-labelledby="tab-own" hidden>
+      <h2 class="section-title" data-reveal>Помимо заказных систем — <em>собственные продукты в эксплуатации</em></h2>
+      <p class="case-lede" data-reveal>
+        Часть систем я строю не по заказу, а как собственные продукты: от AI-платформы
+        самоанализа переписок до компьютерного зрения в животноводстве. Здесь виден
+        инженерный слой, который в клиентских кейсах обычно остаётся за кадром.
+      </p>
+
+      <div class="case-facts" data-reveal>
+        <div class="case-fact"><b>10K+</b><span>пользователей AI-платформы самоанализа диалогов</span></div>
+        <div class="case-fact"><b>64K+</b><span>сообщений разобрано мультимодальным анализом текста, голоса и фото</span></div>
+        <div class="case-fact"><b>4</b><span>модели в каскаде — автоматический fallback при отказах и лимитах API</span></div>
+        <div class="case-fact"><b>&lt;100</b><span>мс задержка видеопотока в системе компьютерного зрения для ферм</span></div>
+      </div>
+
+      <div class="case-grid">
+        <article class="panel" data-reveal style="--rd:0">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">01 · Продукт</span>
+          <h3>Платформа самоанализа диалогов на LLM</h3>
+          <p>Telegram-бот и аналитический движок для психологического разбора переписок: диалоги, голосовые сообщения и каналы проходят через каскад LLM (Claude, GPT, Gemini) — от Big Five и архетипов Юнга до карьерной аналитики. Векторный поиск и кэш держат платформу отзывчивой на 10K+ пользователей.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:1">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">02 · Архитектура</span>
+          <h3>Отказоустойчивость важнее качества одного промпта</h3>
+          <p>Хрупкое место таких систем — не модель, а её доступность. Каскад из четырёх моделей с автопереключением при лимитах, Redis-кэш и вынесенный в отдельный модуль аналитический движок держат платформу живой, когда отказывает любой один провайдер.</p>
+        </article>
+        <article class="panel" data-reveal style="--rd:2">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="num">03 · Продукт</span>
+          <h3>Компьютерное зрение для промышленной фермы</h3>
+          <p>Система учёта и оценки веса животных на YOLO11 и ByteTrack: WebRTC-поток с задержкой до 100 мс, отдельный инференс-воркер с батчингом кадров под GPU и мягкий откат на MJPEG при сетевых проблемах. MVP полностью готов к промышленной эксплуатации.</p>
+        </article>
+        <article class="panel case-result" data-reveal style="--rd:3">
+          <span class="panel-edge" aria-hidden="true"></span>
+          <span class="badge">Результат</span>
+          <h3>Не демо, а то, что держит нагрузку</h3>
+          <p>Оба продукта — про один принцип: там, где хочется закрыть задачу одним промптом, именно инженерная часть — отказоустойчивость, кэш, батчинг, честный fallback — решает, доживёт система до продакшена или останется прототипом.</p>
+        </article>
+      </div>
+
+      <p class="case-note" data-reveal>
+        Собственная разработка вне клиентских NDA — код и метрики открыты для обсуждения.
+      </p>
+
       </div>
     </div>
   </section>
@@ -475,6 +529,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=64" defer></script>
+<script src="app.js?v=76" defer></script>
 </body>
 </html>
